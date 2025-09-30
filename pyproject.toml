@@ -1,0 +1,131 @@
+[project]
+name = "nswrapslite"
+version = "0.0.7"
+authors = [
+    { name="sandorn", email="sandorn@live.cn" },
+]
+description = "功能强大的Python装饰器工具库，提供各种实用的装饰器和工具函数"
+readme = "README.md"
+license = { file="LICENSE" }
+keywords = ["python", "decorators", "tools", "utilities", "singleton", "cache", "retry", "timer", "logging"]
+requires-python = ">=3.13"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "six>=1.16.0",
+    "websocket-client>=1.5.1",
+    "xtlog>=0.1.7",
+]
+
+[project.urls]
+homepage = "https://github.com/sandorn/nswraps"
+repository = "https://github.com/sandorn/nswraps"
+documentation = "https://github.com/sandorn/nswraps/wiki"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.3.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+target-version = "py313"
+cache-dir = "D:/TMP/ruff_cache"
+preview = true
+line-length = 200
+
+[tool.ruff.lint]
+select = [
+    "B",    # bugbear
+    "SIM",  # simplify
+    "RUF",  # ruff
+    "UP",   # pyupgrade
+    "I",    # isort
+    "C90",  # mccabe
+    "N",    # pep8-naming
+    "S",    # bandit
+    "T",    # flake8-print
+    "F",    # pyflakes
+    "E",    # pycodestyle
+    "RET",  # flake8-return
+    "PT",   # flake8-pytest-style
+]
+
+ignore = [
+    "A",    # 完全禁用 flake8-annotations
+    "ANN",  # 完全禁用 flake8-annotations 扩展
+    "E501", # 行超长
+    "B006", # 可变默认值
+    "RUF002", # 忽略字符串中全角标点警告
+    "RUF003", # 忽略字符串中全角标点警告
+    "Q000", # 禁用与格式化器冲突的引号规则
+    "Q003", # 禁用与格式化器冲突的引号规则
+]
+
+# 排除规则
+exclude = [
+    ".venv", "__pycache__", "build", "dist",
+    "migrations", "node_modules", "tests/fixtures",
+    "**/generated/*.py", "*.pyc", "*.pyo", "*.pyd",
+    "*.so", "*.dll", "*.dylib", "*.egg-info", "*.egg",
+    "*.log", "*.tmp", "*.bak", "old_code/**"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"test/**" = ["S101", "T201"]
+"tests/**" = ["S101", "T201"]
+"examples/**" = ["T201", "F401"]
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "single"
+docstring-code-format = true
+line-ending = "auto"
+skip-magic-trailing-comma = false
+
+[tool.mypy]
+python_version = "3.13"
+cache_dir = "D:/TMP/mypt_cache/"
+show_error_codes = true
+show_column_numbers = true
+check_untyped_defs = true
+disallow_incomplete_defs = false
+disallow_untyped_defs = false
+disallow_untyped_decorators = false
+implicit_optional = false
+strict_equality = false
+strict_optional = true
+
+[tool.basedpyright]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+reportMissingImports = "error"
+reportUnusedImport = "none"
+reportUnusedVariable = "warning"
+reportExplicitAny = "none"
+reportAny = "none"
+reportUnannotatedClassAttribute = "none"
+
+# 排除路径
+exclude = [
+    "**/__pycache__",
+    "**/.venv",
+    "**/build",
+    "**/dist",
+    "**/node_modules",
+    "**/tests/fixtures",
+    "**/migrations",
+]
