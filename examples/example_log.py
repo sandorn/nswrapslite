@@ -16,14 +16,13 @@ Github       : https://github.com/sandorn/nswraps
 - 实际应用场景展示
 ==============================================================
 """
+from __future__ import annotations
 
 import asyncio
-import os
-import sys
-from typing import Any, Dict, List
+from typing import Any
 
-# 添加项目根目录到路径
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from xtlog import mylog
+
 from nswrapslite.log import log_wraps
 
 

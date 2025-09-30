@@ -8,14 +8,11 @@ NSWrapsLite 计时工具模块示例程序
 
 每个示例都包含同步和异步函数的计时、异常处理、自定义消息等场景。
 """
+from __future__ import annotations
 
 import asyncio
-import os
-import sys
 import time
-from typing import Any, List
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from nswrapslite.timer import TimerWrapt, timer, timer_wraps
 
 # ======================================================

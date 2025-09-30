@@ -75,7 +75,7 @@ def handle_exception[R](
     error_msg = str(errinfo)
 
     # 统一的日志格式
-    error_message = f'except: {error_type} | {error_msg} | {custom_message or ""}'
+    error_message = f'except: {error_type}({error_msg})' if custom_message is None else f' {custom_message} | except: {error_type}({error_msg})'
     # 记录警告日志
     mylog.error(error_message)
 

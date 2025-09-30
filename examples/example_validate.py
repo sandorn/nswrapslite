@@ -12,12 +12,10 @@ NSWrapsLite 验证工具模块示例程序
 
 每个示例都包含基本用法、高级用法和实际应用场景。
 """
+from __future__ import annotations
 
-import os
-import sys
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from nswrapslite.validate import (
     TypedProperty,
     ensure_initialized,

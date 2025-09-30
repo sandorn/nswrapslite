@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: nswrapslite
-Version: 0.0.7
+Version: 0.0.8
 Summary: 功能强大的Python装饰器工具库，提供各种实用的装饰器和工具函数
 Author-email: sandorn <sandorn@live.cn>
 License: MIT License

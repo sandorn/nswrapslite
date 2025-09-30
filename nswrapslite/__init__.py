@@ -28,9 +28,6 @@ nswraps是一个功能强大的Python装饰器工具库，提供以下核心功�
 - 支持多种组合使用场景
 - 线程安全的单例实现
 - 完整的类型提示支持
-
-版本: 1.0.0
-Python要求: >=3.10
 ==============================================================
 """
 
@@ -53,7 +50,7 @@ from .validate import (
 )
 from .wrapper import decorator_factory, exc_wrapper, log_wrapper, timer_wrapper
 
-__version__ = '0.0.7'
+__version__ = '0.0.8'
 __author__ = 'sandorn'
 __email__ = 'sandorn@live.cn'
 

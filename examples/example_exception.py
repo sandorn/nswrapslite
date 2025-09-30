@@ -8,21 +8,13 @@ NSWrapsLite 异常处理模块示例程序
 
 每个示例都包含基本用法和高级配置选项，展示如何捕获、记录和处理异常。
 """
+from __future__ import annotations
 
 import asyncio
-import logging
-import os
-import sys
 import time
-from typing import Any, Dict, List, Optional
-
-# 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from typing import Any
 
 from nswrapslite.exception import exc_wraps, handle_exception
-
-# 配置日志，以便更好地查看异常处理的输出
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # ======================================================
 # 示例 1: handle_exception 统一异常处理函数
@@ -194,7 +186,7 @@ def call_external_api(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
 
 # 方式3: 结合日志级别动态调整异常处理
 @exc_wraps(re_raise=True)
-def process_sensitive_data(data: dict[str, Any]) -> dict[str, Any]:
+def process_sensitive_data(data: dict[str, Any]) -> dict[str, Any] | None:
     """处理敏感数据（演示结合日志级别的异常处理）"""
     try:
         # 实际应用中可能需要检查数据完整性和安全性
@@ -205,11 +197,7 @@ def process_sensitive_data(data: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:
         # 动态决定是否记录详细堆栈，根据不同环境调整
         is_debug_mode = True  # 实际应用中可以从配置中读取
-        return handle_exception(
-            e,
-            re_raise=True,  # 在生产环境可能设置为False
-            log_traceback=is_debug_mode,
-        )
+        return handle_exception(e, re_raise=False, log_traceback=is_debug_mode)
 
 
 # 方式4: 异步函数的高级异常处理

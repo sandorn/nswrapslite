@@ -10,14 +10,12 @@ NSWrapsLite 单例模式模块示例程序
 
 每个示例都包含实例创建、实例管理和线程安全测试等场景。
 """
+from __future__ import annotations
 
-import os
-import sys
 import threading
 import time
 from typing import Any
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from nswrapslite.singleton import (
     SingletonMeta,
     SingletonMixin,

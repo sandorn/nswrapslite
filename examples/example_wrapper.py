@@ -10,14 +10,12 @@ NSWrapsLite 装饰器工具模块示例程序
 
 每个示例都包含同步和异步函数的用法、基本配置和高级配置选项。
 """
+from __future__ import annotations
 
 import asyncio
-import os
-import sys
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from nswrapslite.wrapper import (
     decorator_factory,
     exc_wrapper,

@@ -19,18 +19,14 @@ Github       : https://github.com/sandorn/nswraps
 - 实际应用场景
 ==============================================================
 """
+from __future__ import annotations
 
 import asyncio
 import concurrent.futures
-import os
 import random
-import sys
 import time
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any
 
-# 添加项目根目录到路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# 导入重试模块功能
 from nswrapslite.retry import (
     retry_async_wraps,
     retry_future,

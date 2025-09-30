@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 """
 ==============================================================
 Description  : 异步执行器模块 - 提供异步执行同步函数和后台任务的功能
@@ -27,6 +27,7 @@ Github       : https://github.com/sandorn/nswraps
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections.abc import Awaitable, Callable, Coroutine
 from concurrent.futures import Future as ThreadFuture
 from concurrent.futures import ThreadPoolExecutor
@@ -34,7 +35,7 @@ from functools import partial, wraps
 from typing import Any, TypeVar, cast
 
 # 导入异常处理模块
-from .exception import handle_exception
+from nswrapslite.exception import handle_exception
 
 # 类型变量
 T = TypeVar('T')
@@ -59,9 +60,11 @@ def _create_exception_handler() -> Callable[[asyncio.Future[Any]], None]:
         try:
             exc = fut.exception()
             if exc is not None:
-                handle_exception(exc)
+                # 记录异常但不重新抛出
+                handle_exception(exc, re_raise=False, custom_message='异步任务执行异常')
         except Exception as err:
-            handle_exception(err)
+            # 记录异常处理过程中的错误
+            handle_exception(err, re_raise=False, custom_message='异常处理器内部错误')
 
     return exception_handler
 
@@ -336,7 +339,8 @@ class ExecutorDecorators:
                 try:
                     loop = asyncio.get_event_loop()
                     used_executor = executor or _default_executor
-                    future = loop.run_in_executor(used_executor, lambda: func(*args, **kwargs))
+                    partial_func = partial(func, *args, **kwargs)
+                    future = loop.run_in_executor(used_executor, partial_func)
                     future.add_done_callback(_create_exception_handler())
                     return future
                 except Exception as err:
@@ -357,7 +361,7 @@ run_executor_wraps = ExecutorDecorators.run_executor_wraps
 future_wraps = ExecutorDecorators.future_wraps
 
 
-async def future_wraps_result[T](future: asyncio.Future[T]) -> T:
+async def future_wraps_result[T](future: asyncio.Future[T], timeout: float | None = DEFAULT_FUTURE_TIMEOUT) -> T:
     """
     Future结果获取器 - 等待Future完成并返回结果，带超时处理和异常管理
 
@@ -366,15 +370,18 @@ async def future_wraps_result[T](future: asyncio.Future[T]) -> T:
     - 自动超时处理，避免永久阻塞
     - 统一的异常处理机制
     - 自动取消超时的Future
+    - 可配置的超时时间
+    - 智能状态检查和取消逻辑
 
     Args:
         future: 要等待的Future对象
+        timeout: 超时时间(秒)，默认为DEFAULT_FUTURE_TIMEOUT(30秒)，None表示无超时
 
     Returns:
         Future完成后的结果
 
     Raises:
-        asyncio.TimeoutError: 当Future在DEFAULT_FUTURE_TIMEOUT(30秒)内未完成时
+        TimeoutError: 当Future在指定时间内未完成时
         asyncio.CancelledError: 当Future被取消时
         其他可能的异常: 由Future执行过程中抛出的原始异常
 
@@ -384,30 +391,46 @@ async def future_wraps_result[T](future: asyncio.Future[T]) -> T:
 
         try:
             # 等待Future完成并获取结果
-            result = await future_wraps_result(future)
+            result = await future_wraps_result(future, timeout=10.0)
             print(f"结果: {result}")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             print("操作超时")
         except Exception as e:
             print(f"发生错误: {e}")
     """
+    # 状态检查：如果future已经完成，直接返回结果
+    if future.done():
+        try:
+            return future.result()
+        except Exception as err:
+            # 关键修正：设置 re_raise=True 让调用方处理异常
+            return cast(T, handle_exception(errinfo=err, re_raise=True))
+
+    # 设置默认超时时间
+    if timeout is None:
+        timeout = DEFAULT_FUTURE_TIMEOUT
+
     try:
-        # 添加超时机制,避免永久等待
-        return await asyncio.wait_for(future, timeout=DEFAULT_FUTURE_TIMEOUT)
+        # 添加超时机制，避免永久等待
+        return await asyncio.wait_for(future, timeout=timeout)
     except TimeoutError as timerr:
-        # 如果超时,取消任务并抛出异常
+        # 改进取消逻辑：如果超时，取消任务并抛出异常
         if not future.done():
             try:
-                future.cancel()
-                # 等待任务确认取消
-                if future._state != 'CANCELLED':  # type: ignore[attr-defined]
-                    await asyncio.sleep(0.01)
+                # 使用更安全的方式取消任务
+                if future.cancel():
+                    # 尝试等待一小段时间让取消生效
+                    with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+                        await asyncio.wait_for(future, timeout=0.5)
             except Exception as e:
-                # 记录取消任务时的异常但不抛出
-                handle_exception(errinfo=e, re_raise=False)
+                # 记录取消过程中的异常，但不影响主流程
+                handle_exception(errinfo=e, re_raise=False, custom_message='取消任务时发生异常')
+        # 关键修正：设置 re_raise=True 让调用方处理超时异常
         return cast(T, handle_exception(errinfo=timerr, re_raise=True))
     except asyncio.CancelledError as cancerr:
         # CancelledError不是Exception的子类，需要特殊处理
+        # 关键修正：设置 re_raise=True 让调用方处理取消异常
         return cast(T, handle_exception(errinfo=cancerr, re_raise=True))
     except Exception as err:
+        # 关键修正：设置 re_raise=True 让调用方处理其他异常
         return cast(T, handle_exception(errinfo=err, re_raise=True))

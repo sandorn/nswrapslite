@@ -10,27 +10,19 @@ NSWrapsLite 执行器模块示例程序
 
 每个示例都包含详细的注释和输出，帮助您理解如何在实际项目中使用这些执行器功能。
 """
+from __future__ import annotations
 
 import asyncio
-import os
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List
+from typing import Any
 
-# 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from nswrapslite.executor import (
     executor_wraps,
     future_wraps,
     future_wraps_result,
     run_executor_wraps,
 )
-
-# ======================================================
-# 示例 1: 基本用法 - executor_wraps
-# ======================================================
-print('\n=== 示例1: 基本用法 - executor_wraps ===')
 
 
 # 同步函数示例
@@ -76,13 +68,6 @@ async def test_basic_executor_wraps():
     print(f'并发执行耗时: {elapsed_time:.3f}秒 (应该小于串行执行的1.3秒)')
 
 
-# ======================================================
-# 示例 2: 后台执行模式 - executor_wraps(background=True)
-# ======================================================
-print('\n=== 示例2: 后台执行模式 ===')
-
-
-# 后台执行的同步函数
 @executor_wraps(background=True)
 def background_task(duration: float, task_id: str) -> str:
     """在后台执行的任务"""
@@ -93,7 +78,6 @@ def background_task(duration: float, task_id: str) -> str:
     return result
 
 
-# 后台执行的异步函数
 @executor_wraps(background=True)
 async def background_async_task(duration: float, task_id: str) -> str:
     """在后台执行的异步任务"""
@@ -124,11 +108,6 @@ async def test_background_execution():
     result2 = await future2
     print(f'后台任务结果: {result1}, {result2}')
 
-
-# ======================================================
-# 示例 3: 自定义执行器 - executor_wraps(executor=custom_executor)
-# ======================================================
-print('\n=== 示例3: 自定义执行器 ===')
 
 # 创建自定义线程池执行器
 custom_executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix='CustomExecutor')
@@ -165,13 +144,6 @@ async def test_custom_executor():
     # custom_executor.shutdown(wait=True)
 
 
-# ======================================================
-# 示例 4: 同步运行异步函数 - run_executor_wraps
-# ======================================================
-print('\n=== 示例4: 同步运行异步函数 ===')
-
-
-# 原始异步函数
 async def original_async_function(duration: float, name: str) -> str:
     """原始的异步函数"""
     print(f'原始异步函数 {name}: 开始执行，持续{duration}秒')
@@ -179,7 +151,6 @@ async def original_async_function(duration: float, name: str) -> str:
     return f'原始异步函数 {name} 完成'
 
 
-# 使用run_executor_wraps装饰的函数
 @run_executor_wraps
 async def wrapped_async_function(duration: float, name: str) -> str:
     """使用run_executor_wraps装饰的异步函数"""
@@ -218,13 +189,6 @@ def test_run_executor_wraps():
     normal_function()
 
 
-# ======================================================
-# 示例 5: Future执行器 - future_wraps
-# ======================================================
-print('\n=== 示例5: Future执行器 ===')
-
-
-# 使用future_wraps装饰的函数
 @future_wraps
 def future_task(task_id: int) -> dict[str, Any]:
     """返回Future对象的任务"""
@@ -237,7 +201,6 @@ def future_task(task_id: int) -> dict[str, Any]:
     }
 
 
-# 使用自定义执行器的future函数
 @future_wraps(executor=custom_executor)
 def custom_future_task(task_id: int) -> list[int]:
     """使用自定义执行器返回Future对象的任务"""
@@ -272,13 +235,6 @@ async def test_future_wraps():
     print(f'Future状态 (完成后): done={future.done()}, cancelled={future.cancelled()}')
 
 
-# ======================================================
-# 示例 6: Future结果获取器 - future_wraps_result
-# ======================================================
-print('\n=== 示例6: Future结果获取器 ===')
-
-
-# 创建会超时的任务
 @future_wraps
 def long_running_task(duration: float, task_id: int) -> str:
     """长时间运行的任务"""
@@ -287,67 +243,50 @@ def long_running_task(duration: float, task_id: int) -> str:
     return f'长时间任务 {task_id} 完成'
 
 
+@future_wraps
+def exception_task():
+    """会抛出异常的任务"""
+    print('执行会抛出异常的任务')
+    raise ValueError('任务执行失败')
+
+    # 注意：以下代码永远不会执行到
+    print('异常任务完成')  # 永远不会执行到
+    return '这不会返回'
+
+
 async def test_future_wraps_result():
     """测试future_wraps_result函数"""
-    # 正常完成的Future
+
     print('\n测试正常完成的Future:')
     normal_future = long_running_task(1.0, 1)
     try:
-        result = await future_wraps_result(normal_future)
+        result = await future_wraps_result(normal_future, timeout=5.0)  # 明确指定超时
         print(f'正常Future结果: {result}')
     except Exception as e:
         print(f'正常Future错误: {type(e).__name__}: {e}')
 
-    # 超时的Future
     print('\n测试超时的Future:')
     timeout_future = long_running_task(5.0, 2)
     try:
-        # 默认超时时间是30秒，但我们可以在future_wraps_result中处理超时逻辑
-        # 这里我们手动设置一个较短的超时
-        async def wait_with_timeout(future, timeout):
-            try:
-                return await asyncio.wait_for(future_wraps_result(future), timeout=timeout)
-            except TimeoutError:
-                print('任务执行超时')
-                raise
-
-        result = await wait_with_timeout(timeout_future, 2.0)  # 设置2秒超时
-        print(f'超时Future结果: {result}')
+        # 直接使用 future_wraps_result 的超时参数
+        result = await future_wraps_result(timeout_future, timeout=2.0)
+        print(f'超时Future结果: {result}')  # 不会执行到这里
     except TimeoutError:
         print('捕获到超时异常')
     except Exception as e:
         print(f'超时Future其他错误: {type(e).__name__}: {e}')
 
-    # 异常的Future
     print('\n测试异常的Future:')
-
-    # 定义会抛出异常的任务函数
-    @future_wraps
-    def exception_task():
-        """会抛出异常的任务"""
-        print('执行会抛出异常的任务')
-        raise ValueError('任务执行失败')
-
-        # 注意：以下代码永远不会执行到
-        print('异常任务完成')  # 永远不会执行到
-        return '这不会返回'
-
-    # 测试异常的Future
     try:
         exception_future = exception_task()
-        result = await future_wraps_result(exception_future)
+        result = await future_wraps_result(exception_future, timeout=5.0)
         print(f'异常Future结果: {result}')  # 不会执行到这里
+    except ValueError as e:
+        print(f'捕获到预期异常9: {e}')
     except Exception as e:
-        print(f'捕获到异常: {type(e).__name__}: {e}')
+        print(f'捕获到其他异常0: {type(e).__name__}: {e}')
 
 
-# ======================================================
-# 示例 7: 实际应用场景
-# ======================================================
-print('\n=== 示例7: 实际应用场景 ===')
-
-
-# 模拟数据库操作
 @executor_wraps
 def database_query(query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """模拟数据库查询操作"""
@@ -361,7 +300,6 @@ def database_query(query: str, params: dict[str, Any] | None = None) -> list[dic
     ]
 
 
-# 模拟API调用
 @executor_wraps(background=True)
 def api_call(endpoint: str, method: str = 'GET', data: dict[str, Any] | None = None) -> dict[str, Any]:
     """模拟API调用"""
@@ -376,7 +314,6 @@ def api_call(endpoint: str, method: str = 'GET', data: dict[str, Any] | None = N
     }
 
 
-# 模拟计算密集型任务
 @executor_wraps(executor=ThreadPoolExecutor(max_workers=2))
 def cpu_intensive_task(data: list[int]) -> dict[str, Any]:
     """模拟计算密集型任务"""
@@ -424,13 +361,6 @@ async def test_practical_scenarios():
     print(f'组合操作总耗时: {elapsed_time:.3f}秒')
 
 
-# ======================================================
-# 示例 8: 最佳实践组合
-# ======================================================
-print('\n=== 示例8: 最佳实践组合 ===')
-
-
-# 定义一个复杂的业务流程，结合多种执行器功能
 class BusinessService:
     """业务服务类，演示执行器的最佳实践组合"""
 
@@ -535,71 +465,31 @@ async def test_best_practices():
 # ======================================================
 async def main() -> None:
     """主函数，演示所有执行器工具的用法"""
-    print('=' * 80)
     print('NSWrapsLite 执行器模块示例程序')
-    print('=' * 80)
 
-    # 1. 基本用法 - executor_wraps
-    # print('\n' + '-' * 80)
-    # print('1. 基本用法 - executor_wraps')
-    # print('-' * 80)
-    # await test_basic_executor_wraps()
+    print('1. 基本用法 - executor_wraps')
+    await test_basic_executor_wraps()
 
-    # 2. 后台执行模式
-    # print('\n' + '-' * 80)
-    # print('2. 后台执行模式')
-    # print('-' * 80)
-    # await test_background_execution()
+    print('2. 后台执行模式')
+    await test_background_execution()
 
-    # 3. 自定义执行器
-    # print('\n' + '-' * 80)
-    # print('3. 自定义执行器')
-    # print('-' * 80)
-    # await test_custom_executor()
+    print('3. 自定义执行器')
+    await test_custom_executor()
 
-    # 4. 同步运行异步函数
-    print('\n' + '-' * 80)
     print('4. 同步运行异步函数')
-    print('-' * 80)
     test_run_executor_wraps()
 
-    # 5. Future执行器
-    # print('\n' + '-' * 80)
-    # print('5. Future执行器')
-    # print('-' * 80)
-    # await test_future_wraps()
+    print('5. Future执行器')
+    await test_future_wraps()
 
-    # 6. Future结果获取器
-    print('\n' + '-' * 80)
     print('6. Future结果获取器')
-    print('-' * 80)
     await test_future_wraps_result()
 
-    # 7. 实际应用场景
-    # print('\n' + '-' * 80)
-    # print('7. 实际应用场景')
-    # print('-' * 80)
-    # await test_practical_scenarios()
+    print('7. 实际应用场景')
+    await test_practical_scenarios()
 
-    # 8. 最佳实践组合
-    # print('\n' + '-' * 80)
-    # print('8. 最佳实践组合')
-    # print('-' * 80)
-    # await test_best_practices()
-
-    print('\n' + '=' * 80)
-    print('NSWrapsLite 执行器模块示例程序 演示完毕')
-    print('=' * 80)
-
-    # 总结执行器装饰器的最佳实践
-    # print('\n执行器装饰器使用最佳实践:')
-    # print('1. 对IO密集型操作使用executor_wraps，提高程序并发性能')
-    # print('2. 使用background=True在后台执行不需要立即结果的任务')
-    # print('3. 为不同类型的任务创建专用的ThreadPoolExecutor')
-    # print('4. 使用run_executor_wraps在同步代码中无缝调用异步函数')
-    # print('5. 使用future_wraps和future_wraps_result处理复杂的异步流程')
-    # print('6. 注意在适当的时候关闭自定义执行器，避免资源泄露')
-    # print('7. 结合异常处理机制，确保任务失败时能够优雅处理')
+    print('8. 最佳实践组合')
+    await test_best_practices()
 
 
 if __name__ == '__main__':

@@ -13,11 +13,10 @@ NSWrapsLite 缓存装饰器模块示例程序
 
 每个示例都包含详细的注释和输出,帮助您理解如何在实际项目中使用缓存装饰器优化性能。
 """
+from __future__ import annotations
 
-import os
-import sys
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from nswrapslite.cache import cache_wrapper
 

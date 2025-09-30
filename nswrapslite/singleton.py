@@ -78,8 +78,8 @@ class SingletonMeta(type):
         print(f"新连接字符串: {db3.connection_string}")  # 输出: mysql://localhost:3306/db3
     """
 
-    _instances: WeakValueDictionary[type, Any] = WeakValueDictionary()  # 使用弱引用字典来存储实例
-    _instance_lock: RLock = RLock()  # 使用可重入锁，避免递归调用问题
+    _instances: WeakValueDictionary[type, Any] = WeakValueDictionary()  # 弱引用字典来存储实例
+    _instance_lock: RLock = RLock()  # 可重入锁，避免递归调用
 
     def __call__(cls: type[Any], *args: Any, **kwargs: Any) -> Any:
         """获取单例实例（带异常处理）"""
@@ -171,7 +171,7 @@ class SingletonMixin:
         logged_config.log(f"当前配置: {logged_config.config}")
     """
 
-    _instance_lock: RLock = RLock()  # 使用可重入锁，避免递归调用问题
+    _instance_lock: RLock = RLock()  # 可重入锁，避免递归调用问题
     _instances: WeakValueDictionary[type, Any] = WeakValueDictionary()
 
     def __new__(cls: type[Any], *args: Any, **kwargs: Any) -> Any:
@@ -275,8 +275,8 @@ class SingletonWraps:
 
     def __init__(self, cls: type[Any]) -> None:
         self._cls: type[Any] = cls
-        self._instance_rlock: RLock = RLock()  # 使用可重入锁
-        self._instances: WeakKeyDictionary[type[Any], Any] = WeakKeyDictionary()  # 使用弱键字典存储类与实例的关联
+        self._instance_rlock: RLock = RLock()  # 可重入锁
+        self._instances: WeakKeyDictionary[type[Any], Any] = WeakKeyDictionary()  # 弱键字典存储类与实例的关联
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """获取/创建单例实例"""
