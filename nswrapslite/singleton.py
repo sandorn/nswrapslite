@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
 """
 ==============================================================
-Description  : 单例模式工具模块 - 提供多种线程安全的单例实现方式
+Description  : 线程安全的单例模式实现模块 - 提供多种单例模式实现方式
 Develop      : VSCode
 Author       : sandorn sandorn@live.cn
-Date         : 2022-12-22 17:35:56
-LastEditTime : 2025-09-06 12:00:00
-Github       : https://github.com/sandorn/nswraps
+LastEditTime : 2025-10-01 14:15:00
+Github       : https://github.com/sandorn/nswrapslite
 
 本模块提供以下核心功能：
-- SingletonMeta：线程安全的单例元类实现
-- SingletonMixin：线程安全的单例混入类实现
-- SingletonWraps：增强型单例类装饰器实现
-- singleton：基于SingletonWraps的简单单例装饰器函数
+- SingletonMeta：线程安全的单例元类，支持异步初始化
+- singleton：函数装饰器形式的单例模式实现
+- Singleton：类装饰器形式的单例模式实现
 
 主要特性：
-- 线程安全：通过双重检查锁机制确保在多线程环境下的安全性
-- 内存优化：使用弱引用避免内存泄漏
-- 实例管理：支持重置、检查和获取实例的功能
-- 异常处理：提供完善的错误捕获和处理机制
-- 类型支持：完整的类型注解支持
-- 自动垃圾回收：通过弱引用实现实例的自动清理
+- 完全线程安全的单例创建
+- 支持异步初始化（__ainit__方法）
+- 多种实现方式：元类、函数装饰器、类装饰器
+- 支持继承和多态
+- 惰性初始化，只在首次访问时创建实例
+- 完整的类型注解支持
 ==============================================================
 """
 
@@ -355,3 +353,12 @@ def singleton(cls: type[Any]) -> SingletonWraps:
         print(f"新实例: {config3}")
     """
     return SingletonWraps(cls)
+
+
+# 导出模块公共接口
+__all__ = [
+    'SingletonMeta',
+    'SingletonMixin',
+    'SingletonWraps',
+    'singleton',
+]

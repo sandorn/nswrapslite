@@ -4,9 +4,8 @@
 Description  : 计时工具模块 - 提供函数执行耗时自动记录功能
 Develop      : VSCode
 Author       : sandorn sandorn@live.cn
-Date         : 2025-08-28 10:56:45
 LastEditTime : 2025-09-11 14:30:00
-Github       : https://github.com/sandorn/nswraps
+Github       : https://github.com/sandorn/nswrapslite
 
 本模块提供以下核心功能：
 - timer_wraps：自动记录函数执行耗时的装饰器
@@ -31,7 +30,9 @@ from functools import wraps
 from time import perf_counter
 from typing import Any
 
-from xtlog import get_function_location, mylog
+from xtlog import mylog
+
+from .utils import _get_function_location
 
 
 def timer_wraps(fn: Callable[..., Any] | None = None) -> Callable[..., Any]:
@@ -75,11 +76,11 @@ def timer_wraps(fn: Callable[..., Any] | None = None) -> Callable[..., Any]:
             start_time = perf_counter()
             try:
                 result = func(*args, **kwargs)
-                func_location = get_function_location(func)
+                func_location = _get_function_location(func)
                 mylog.info(f'{func_location}执行耗时: {perf_counter() - start_time:.4f}秒')
                 return result
             except Exception as err:
-                func_location = get_function_location(func)
+                func_location = _get_function_location(func)
                 mylog.error(f'{func_location}失败耗时: {perf_counter() - start_time:.4f}秒')
                 raise err
 
@@ -88,11 +89,11 @@ def timer_wraps(fn: Callable[..., Any] | None = None) -> Callable[..., Any]:
             start_time = perf_counter()
             try:
                 result = await func(*args, **kwargs)
-                func_location = get_function_location(func)
+                func_location = _get_function_location(func)
                 mylog.info(f'{func_location}执行耗时: {perf_counter() - start_time:.4f}秒')
                 return result
             except Exception as err:
-                func_location = get_function_location(func)
+                func_location = _get_function_location(func)
                 mylog.error(f'{func_location}失败耗时: {perf_counter() - start_time:.4f}秒')
                 raise err
 
@@ -163,12 +164,12 @@ class TimerWrapt:
         try:
             result = self.func(*args, **kwargs)
             elapsed = perf_counter() - start_time
-            func_location = get_function_location(self.func)
+            func_location = _get_function_location(self.func)
             mylog.info(f'TimerWrapt {self.description} | {func_location}执行耗时:{elapsed:.4f}秒')
             return result
         except Exception as err:
             elapsed = perf_counter() - start_time
-            func_location = get_function_location(self.func)
+            func_location = _get_function_location(self.func)
             mylog.error(f'TimerWrapt {self.description} | {func_location}失败耗时:{elapsed:.4f}秒')
             raise err
 
@@ -188,10 +189,10 @@ class TimerWrapt:
         """上下文管理器模式：结束计时并记录"""
         elapsed = perf_counter() - self.start_time
         if exc_type is not None:
-            func_location = get_function_location(self.__exit__)
+            func_location = _get_function_location(self.__exit__)
             mylog.error(f'TimerWrapt {self.description} | {func_location}失败耗时:{elapsed:.4f}秒')
             return
-        func_location = get_function_location(self.__exit__)
+        func_location = _get_function_location(self.__exit__)
         mylog.info(f'TimerWrapt {self.description} | {func_location}执行耗时:{elapsed:.4f}秒')
 
     async def __aenter__(self) -> TimerWrapt:
@@ -219,3 +220,10 @@ class TimerWrapt:
             f' TimerWrapt {self.description} | 执行耗时:{elapsed:.4f}秒',
             callfrom=self.__aexit__,
         )
+
+
+__all__ = [
+    'TimerWrapt',
+    'timer',
+    'timer_wraps',
+]

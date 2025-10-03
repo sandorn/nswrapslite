@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """
 ==============================================================
-Description  : 重试机制模块 - 提供函数重试和异常处理功能
+Description  : 重试机制模块 - 提供函数执行失败自动重试功能
 Develop      : VSCode
 Author       : sandorn sandorn@live.cn
-Date         : 2025-09-01 08:40:27
-LastEditTime : 2025-09-11 16:40:00
-Github       : https://github.com/sandorn/nswraps
+LastEditTime : 2025-10-01 14:30:00
+Github       : https://github.com/sandorn/nswrapslite
 
 本模块提供以下核心功能：
-- retry_wraps：函数重试装饰器，支持自定义重试策略
-- retry_async_wraps：异步函数重试装饰器
-- retry_request：HTTP请求重试函数，支持自定义重试策略
-- retry_future：Future对象重试函数，支持自定义重试策略
+- RetryStrategy：重试策略类，定义重试逻辑和参数
+- retry_wraps：函数重试装饰器，支持同步和异步函数
+- retry_wraps_with_strategy：使用自定义策略的函数重试装饰器
+- exponential_backoff：指数退避等待时间计算函数
 
 主要特性：
-- 支持同步和异步函数的重试
-- 灵活的重试策略配置（次数、间隔、退避算法）
-- 自定义异常过滤和重试条件
-- 完整的日志记录和异常处理
-- 支持HTTP请求和Future对象的重试
+- 同时支持同步和异步函数
+- 可配置的重试次数、等待时间和异常类型
+- 多种重试等待策略（固定、随机、指数退避）
+- 支持自定义重试条件和成功条件
+- 完整的类型注解支持
+- 保留原始函数的元数据
 ==============================================================
 """
 
@@ -30,13 +30,7 @@ import time
 from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from concurrent.futures import Future
 from functools import wraps
-from typing import Any, Protocol, TypeVar
-
-# 导入异常处理模块
-
-# 类型变量
-T = TypeVar('T')
-R = TypeVar('R')
+from typing import Any, Protocol
 
 
 class RequestLike(Protocol):
@@ -120,8 +114,8 @@ class RetryStrategy:
         return self.retry_on_result(result)
 
 
-def retry_wraps[T](
-    fn: Callable[..., T] | None = None,
+def retry_wraps(
+    fn: Callable[..., Any] | None = None,
     *,
     max_retries: int = 3,
     delay: float = 1.0,
@@ -129,7 +123,7 @@ def retry_wraps[T](
     jitter: float = 0.1,
     exceptions: tuple[type[Exception], ...] = (Exception,),
     retry_on_result: Callable[[Any], bool] | None = None,
-) -> Callable[[Callable[..., T]], Callable[..., T]] | Callable[..., T]:
+) -> Callable[..., Any]:
     """
     重试装饰器 - 为函数添加自动重试功能
 
@@ -164,7 +158,7 @@ def retry_wraps[T](
             pass
     """
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         strategy = RetryStrategy(
             max_retries=max_retries,
             delay=delay,
@@ -175,7 +169,7 @@ def retry_wraps[T](
         )
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exception: Exception | None = None
 
             for attempt in range(1, strategy.max_retries + 2):  # +2 因为第一次不是重试,最后一次是最终尝试
@@ -212,15 +206,15 @@ def retry_wraps[T](
     return decorator if fn is None else decorator(fn)
 
 
-def retry_async_wraps[T](
-    fn: Callable[..., Awaitable[T]] | None = None,
+def retry_async_wraps(
+    fn: Callable[..., Awaitable[Any]] | None = None,
     max_retries: int = 3,
     delay: float = 1.0,
     backoff: float = 2.0,
     jitter: float = 0.1,
     exceptions: tuple[type[Exception], ...] = (Exception,),
     retry_on_result: Callable[[Any], bool] | None = None,
-) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Coroutine[Any, Any, T]]] | Callable[..., Coroutine[Any, Any, T]]:
+) -> Callable[..., Any]:
     """
     异步重试装饰器 - 为异步函数添加自动重试功能
 
@@ -250,8 +244,8 @@ def retry_async_wraps[T](
     """
 
     def decorator(
-        func: Callable[..., Awaitable[T]],
-    ) -> Callable[..., Coroutine[Any, Any, T]]:
+        func: Callable[..., Awaitable[Any]],
+    ) -> Callable[..., Coroutine[Any, Any, Any]]:
         strategy = RetryStrategy(
             max_retries=max_retries,
             delay=delay,
@@ -262,7 +256,7 @@ def retry_async_wraps[T](
         )
 
         @wraps(func)
-        async def wrapper(*args: Any, **kwargs: Any) -> T:
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exception: Exception | None = None
 
             for attempt in range(1, strategy.max_retries + 2):  # +2 因为第一次不是重试,最后一次是最终尝试
@@ -299,15 +293,15 @@ def retry_async_wraps[T](
     return decorator(fn) if fn else decorator
 
 
-async def retry_future[T](
-    future_factory: Callable[[], Future[T]],
+async def retry_future(
+    future_factory: Callable[[], Future[Any]],
     max_retries: int = 3,
     delay: float = 1.0,
     backoff: float = 2.0,
     jitter: float = 0.1,
     exceptions: tuple[type[Exception], ...] = (Exception,),
     retry_on_result: Callable[[Any], bool] | None = None,
-) -> T:
+) -> Any:
     """
     Future重试函数 - 为Future对象添加重试功能
 

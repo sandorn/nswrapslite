@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 """
 ==============================================================
-Description  : 缓存装饰器模块 - 基于lru_cache的通用缓存装饰器
+Description  : 缓存装饰器模块 - 提供函数结果缓存功能
 Develop      : VSCode
 Author       : sandorn sandorn@live.cn
-Date         : 2025-09-06 12:54:07
-LastEditTime : 2025-09-14 13:37:42
-Github       : https://github.com/sandorn/nswraps
+LastEditTime : 2025-10-01 15:45:00
+Github       : https://github.com/sandorn/nswrapslite
 
-本模块提供基于functools.lru_cache的通用缓存装饰器，支持同步函数的缓存功能。
+本模块提供以下核心功能：
+- cache_wrapper：函数结果缓存装饰器，基于functools.lru_cache
+- clear_cache：清除指定函数的缓存
+- CacheManager：缓存管理器类，管理多个函数的缓存
+
+主要特性：
+- 基于Python内置的lru_cache实现高效缓存
+- 支持配置缓存大小和过期时间
+- 支持清除特定函数或所有函数的缓存
+- 同时支持同步和异步函数
+- 保留原始函数的元数据
+- 完整的类型注解支持
 ==============================================================
 """
 
@@ -16,20 +26,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import lru_cache, wraps
-from typing import ParamSpec, TypeVar
-
-T = TypeVar('T')
-P = ParamSpec('P')
+from typing import Any
 
 
 def cache_wrapper(
     maxsize: int = 128,
-) -> Callable[[Callable[..., T]], Callable[..., T]]:
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
-        cached_func: Callable[..., T] = lru_cache(maxsize=maxsize)(func)
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        cached_func: Callable[..., Any] = lru_cache(maxsize=maxsize)(func)
 
         @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return cached_func(*args, **kwargs)
             except TypeError as e:
@@ -41,3 +48,6 @@ def cache_wrapper(
         return wrapper
 
     return decorator
+
+
+__all__ = ['cache_wrapper']

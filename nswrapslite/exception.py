@@ -1,58 +1,56 @@
 # !/usr/bin/env python3
 """
 ==============================================================
-Description  : 异常处理模块 - 提供统一、可配置的异常处理和堆栈信息管理功能
+Description  : 异常处理模块 - 提供异常捕获和处理功能
 Develop      : VSCode
 Author       : sandorn sandorn@live.cn
-Date         : 2025-09-05 17:32:29
-LastEditTime : 2025-09-06 10:30:00
-Github       : https://github.com/sandorn/nswraps
+LastEditTime : 2025-10-01 15:30:00
+Github       : https://github.com/sandorn/nswrapslite
 
-本模块提供了两个核心功能：
-- get_simplified_traceback: 获取精简的堆栈跟踪信息，支持自定义显示帧数、过滤库文件帧等
-- handle_exception: 统一的异常处理函数，支持日志记录、堆栈简化、异常重抛等功能
+本模块提供以下核心功能：
+- _handle_exception：异常处理函数，记录异常信息
+- exception_wraps：异常捕获和处理装饰器，支持同步和异步函数
 
-使用场景：
-- 简化调试过程中的异常信息分析
-- 统一应用程序的异常处理逻辑
-- 在不同环境中动态调整异常信息的详细程度
-- 提供友好的错误反馈和日志记录
+主要特性：
+- 同时支持同步和异步函数的异常处理
+- 详细的异常信息记录（函数名、参数、异常类型、堆栈）
+- 支持自定义异常处理逻辑
+- 保留原始函数的元数据
+- 完整的类型注解支持
 ==============================================================
 """
 
 from __future__ import annotations
 
-import asyncio
 import traceback
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar, cast
+from typing import Any
 
 from xtlog import mylog
 
-# 定义类型变量
-T = TypeVar('T')
-R = TypeVar('R')
-P = ParamSpec('P')
+# 使用相对导入
+from .utils import _is_async_function
 
 # 类型别名
-ExceptionHandler = Callable[[Exception], R]
 ExceptionTypes = tuple[type[Exception], ...]
 
 
-def handle_exception[R](
-    errinfo: BaseException,
-    re_raise: bool = True,
-    default_return: R | None = None,
+def _handle_exception(
+    exc: Exception,
+    re_raise: bool = False,
+    handler: Callable[[Exception], Any] | None = None,
+    default_return: Any | None = None,
     log_traceback: bool = True,
     custom_message: str | None = None,
-) -> R | None:
+) -> Any | None:
     """
     统一的异常处理函数，提供完整的异常捕获、记录和处理机制
 
     Args:
-        errinfo: 异常对象
-        re_raise: 是否重新抛出异常，默认True（抛出异常）
+        exc: 异常对象
+        re_raise: 是否重新抛出异常，默认False（不抛出异常）
+        handler: 异常处理函数，默认None（不处理）
         default_return: 不抛出异常时的默认返回值，default_return为None时返回错误信息字符串
         log_traceback: 是否记录完整堆栈信息，默认True
         custom_message: 自定义错误提示信息，默认None
@@ -71,8 +69,8 @@ def handle_exception[R](
     """
 
     # 构建错误信息
-    error_type = type(errinfo).__name__
-    error_msg = str(errinfo)
+    error_type = type(exc).__name__
+    error_msg = str(exc)
 
     # 统一的日志格式
     error_message = f'except: {error_type}({error_msg})' if custom_message is None else f' {custom_message} | except: {error_type}({error_msg})'
@@ -85,88 +83,30 @@ def handle_exception[R](
 
     # 根据需要重新抛出异常
     if re_raise:
-        raise errinfo
+        raise exc
+
+    # 调用异常处理函数
+    if handler:
+        return handler(exc)
 
     return default_return
 
 
-def _create_async_wrapper(
-    func: Callable[..., Awaitable[R]],
-    re_raise: bool,
-    default_return: R | None,
-    allowed_exceptions: ExceptionTypes,
-    log_traceback: bool,
-    custom_message: str | None,
-) -> Callable[..., Coroutine[Any, Any, R | None]]:
-    """创建异步包装器"""
-
-    @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> R | None:
-        """异步函数包装器"""
-        try:
-            # 确保返回的是R类型
-            return await func(*args, **kwargs)
-        except allowed_exceptions as err:
-            # 直接调用handle_exception，如果re_raise=True，它会抛出异常
-            result = handle_exception(
-                errinfo=err,
-                re_raise=re_raise,
-                default_return=default_return,
-                log_traceback=log_traceback,
-                custom_message=custom_message,
-            )
-            return result  # type: ignore # noqa
-        except Exception as err:
-            raise err  # 保持异常链完整性
-
-    return wrapper
-
-
-def _create_sync_wrapper(
-    func: Callable[..., R],
-    re_raise: bool,
-    default_return: R | None,
-    allowed_exceptions: ExceptionTypes,
-    log_traceback: bool,
-    custom_message: str | None,
-) -> Callable[..., R | None]:
-    """创建同步包装器"""
-
-    @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> R | None:
-        """同步函数包装器"""
-        try:
-            return func(*args, **kwargs)
-        except allowed_exceptions as err:
-            # 直接调用handle_exception，如果re_raise=True，它会抛出异常
-            return handle_exception(
-                errinfo=err,
-                re_raise=re_raise,
-                default_return=default_return,
-                log_traceback=log_traceback,
-                custom_message=custom_message,
-            )
-        except Exception as err:
-            raise err  # 保持异常链完整性
-
-    return wrapper
-
-
-def exc_wraps(
-    func: Callable[..., R] | None = None,
-    *,
-    re_raise: bool = True,
-    default_return: R | None = None,
+def exception_wraps(
+    re_raise: bool = False,
+    handler: Callable[[Exception], Any] | None = None,
+    default_return: Any | None = None,
     allowed_exceptions: ExceptionTypes = (Exception,),
     log_traceback: bool = True,
     custom_message: str | None = None,
-) -> Callable[[Callable[..., R]], Callable[..., R | None]] | Callable[..., R | None]:
+) -> Callable:
     """
     通用异常处理装饰器 - 支持同步和异步函数
 
     Args:
         func: 被装饰的函数(支持直接装饰和带参数装饰两种方式)
-        re_raise: 是否重新抛出异常，默认True
+        re_raise: 是否重新抛出异常，默认True（抛出异常）
+        handler: 异常处理函数，默认None（不处理）
         default_return: 发生异常时的默认返回值，None时返回错误信息字符串
         allowed_exceptions: 允许捕获的异常类型元组，默认捕获所有异常
         log_traceback: 是否记录完整堆栈信息，默认True
@@ -197,32 +137,33 @@ def exc_wraps(
         ...     return a / b
     """
 
-    def decorator(f: Callable[..., R]) -> Callable[..., R | None]:
-        """装饰器内部函数"""
-        if asyncio.iscoroutinefunction(f):
-            wrapper = _create_async_wrapper(
-                f,
-                re_raise,
-                default_return,
-                allowed_exceptions,
-                log_traceback,
-                custom_message,
-            )
-        else:
-            wrapper = _create_sync_wrapper(
-                f,
-                re_raise,
-                default_return,
-                allowed_exceptions,
-                log_traceback,
-                custom_message,
-            )
+    def decorator(func: Callable) -> Callable:
+        """装饰器函数"""
 
-        # 保留原始函数的__annotations__属性
-        wrapper.__annotations__ = f.__annotations__
-        return cast(Callable[..., R | None], wrapper)
+        if _is_async_function(func):
+            # 异步函数异常捕获装饰器
+            @wraps(func)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                """异步异常捕获包装器"""
+                try:
+                    return await func(*args, **kwargs)
+                except allowed_exceptions as exc:
+                    return _handle_exception(exc, re_raise, handler, default_return, log_traceback, custom_message)
 
-    # 支持两种调用方式:@exc_wraps 或 @exc_wraps()
-    if func is None:
-        return decorator
-    return decorator(func)
+            return async_wrapper
+
+        # 同步函数异常捕获装饰器
+        @wraps(func)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            """同步异常捕获包装器"""
+            try:
+                return func(*args, **kwargs)
+            except allowed_exceptions as exc:
+                return _handle_exception(exc, re_raise, handler, default_return, log_traceback, custom_message)
+
+        return sync_wrapper
+
+    return decorator
+
+
+__all__ = ['exception_wraps']
