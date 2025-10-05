@@ -22,7 +22,7 @@ from typing import Any
 
 from xtlog import mylog
 
-from .utils import _is_async_function
+from .utils import is_async_function
 
 
 def decorator_transformer(wrapper_func: Callable[..., Any]) -> Callable[..., Any]:
@@ -30,10 +30,10 @@ def decorator_transformer(wrapper_func: Callable[..., Any]) -> Callable[..., Any
 
     这个装饰器工厂允许你专注于装饰逻辑实现，而无需关心被装饰函数是同步还是异步的。
     它会自动检测函数类型并应用合适的包装策略。
-    
+
     参数说明:
         wrapper_func: 包装函数，接收(func, args, kwargs)参数，处理实际的装饰逻辑
-        
+
     返回值:
         可应用于同步或异步函数的装饰器
     """
@@ -41,13 +41,13 @@ def decorator_transformer(wrapper_func: Callable[..., Any]) -> Callable[..., Any
     def create_decorator(func: Callable) -> Callable:
         """创建实际的装饰器函数"""
 
-        if _is_async_function(func):
+        if is_async_function(func):
             # 异步函数装饰器
             @wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 """异步函数包装器"""
                 # 如果包装器函数也是异步的，直接await调用
-                if _is_async_function(wrapper_func):
+                if is_async_function(wrapper_func):
                     return await wrapper_func(func, args, kwargs)
                 # 包装器函数是同步的，直接调用
                 return wrapper_func(func, args, kwargs)
@@ -59,7 +59,7 @@ def decorator_transformer(wrapper_func: Callable[..., Any]) -> Callable[..., Any
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             """同步函数包装器"""
             # 如果包装器函数是异步的，需要在事件循环中运行
-            if _is_async_function(wrapper_func):
+            if is_async_function(wrapper_func):
                 try:
                     # 尝试获取当前运行的事件循环
                     loop = asyncio.get_running_loop()
@@ -84,13 +84,13 @@ def decorator_transformer(wrapper_func: Callable[..., Any]) -> Callable[..., Any
 @decorator_transformer
 async def timing_decorator(func, args, kwargs):
     """计时装饰器实现 - 记录函数执行耗时
-    
+
     自动检测函数类型并记录执行时间，支持同步和异步函数。
     """
     start_time = perf_counter()
     try:
         # 根据被装饰函数的类型决定是否使用await
-        if _is_async_function(func):
+        if is_async_function(func):
             return await func(*args, **kwargs)
         return func(*args, **kwargs)
     finally:

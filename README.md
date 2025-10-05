@@ -135,16 +135,14 @@ result2 = expensive_computation(10, 20)
 
 请查看 [examples](examples/) 目录下的示例文件，了解更多使用方法：
 
-- `example_log.py`: 演示如何使用日志装饰器和日志记录器
-- `example_exception.py`: 演示如何使用异常处理功能
-- `example_retry.py`: 演示如何使用重试机制
-- `example_cache.py`: 演示如何使用缓存功能
-- `example_timer.py`: 演示如何使用计时器功能
-- `example_singleton.py`: 演示如何使用单例模式
-- `example_validate.py`: 演示如何使用数据验证功能
-- `example_wrapper.py`: 演示如何使用函数包装器
-
 ## 功能变化
+
+### 版本 0.1.0 更新内容
+- **API 稳定性提升**：所有核心API已稳定，适合生产环境使用
+- **代码质量优化**：全面通过ruff和basedPyright检查，代码风格统一
+- **文档完善**：更新使用示例和API说明，提高用户体验
+- **性能改进**：优化内部实现，提高装饰器执行效率
+- **依赖管理优化**：更新依赖版本，提高兼容性
 
 ### 版本 0.0.9 更新内容
 - **函数命名优化**：重构executor模块，将复杂的函数名改为更直观的名称

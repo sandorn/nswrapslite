@@ -32,7 +32,7 @@ from typing import Any
 
 from xtlog import mylog
 
-from .utils import _get_function_location
+from .utils import get_function_location
 
 
 def timer_wraps(fn: Callable[..., Any] | None = None) -> Callable[..., Any]:
@@ -73,27 +73,25 @@ def timer_wraps(fn: Callable[..., Any] | None = None) -> Callable[..., Any]:
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            func_location = get_function_location(func)
             start_time = perf_counter()
             try:
                 result = func(*args, **kwargs)
-                func_location = _get_function_location(func)
                 mylog.info(f'{func_location}执行耗时: {perf_counter() - start_time:.4f}秒')
                 return result
             except Exception as err:
-                func_location = _get_function_location(func)
                 mylog.error(f'{func_location}失败耗时: {perf_counter() - start_time:.4f}秒')
                 raise err
 
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            func_location = get_function_location(func)
             start_time = perf_counter()
             try:
                 result = await func(*args, **kwargs)
-                func_location = _get_function_location(func)
                 mylog.info(f'{func_location}执行耗时: {perf_counter() - start_time:.4f}秒')
                 return result
             except Exception as err:
-                func_location = _get_function_location(func)
                 mylog.error(f'{func_location}失败耗时: {perf_counter() - start_time:.4f}秒')
                 raise err
 
@@ -161,16 +159,15 @@ class TimerWrapt:
             raise ValueError('TimerWrapt 装饰器模式下 func 不能为 None')
 
         start_time = perf_counter()
+        func_location = get_function_location(self.func)
         try:
             result = self.func(*args, **kwargs)
             elapsed = perf_counter() - start_time
-            func_location = _get_function_location(self.func)
-            mylog.info(f'TimerWrapt {self.description} | {func_location}执行耗时:{elapsed:.4f}秒')
+            mylog.info(f'{func_location} {self.description} 执行耗时:{elapsed:.4f}秒')
             return result
         except Exception as err:
             elapsed = perf_counter() - start_time
-            func_location = _get_function_location(self.func)
-            mylog.error(f'TimerWrapt {self.description} | {func_location}失败耗时:{elapsed:.4f}秒')
+            mylog.error(f'{func_location} {self.description} 失败耗时:{elapsed:.4f}秒')
             raise err
 
     def __enter__(self) -> TimerWrapt:
@@ -189,11 +186,9 @@ class TimerWrapt:
         """上下文管理器模式：结束计时并记录"""
         elapsed = perf_counter() - self.start_time
         if exc_type is not None:
-            func_location = _get_function_location(self.__exit__)
-            mylog.error(f'TimerWrapt {self.description} | {func_location}失败耗时:{elapsed:.4f}秒')
+            mylog.error(f'{self.description} 失败耗时:{elapsed:.4f}秒')
             return
-        func_location = _get_function_location(self.__exit__)
-        mylog.info(f'TimerWrapt {self.description} | {func_location}执行耗时:{elapsed:.4f}秒')
+        mylog.info(f'{self.description} 执行耗时:{elapsed:.4f}秒')
 
     async def __aenter__(self) -> TimerWrapt:
         """异步上下文管理器模式：开始计时"""
@@ -211,15 +206,9 @@ class TimerWrapt:
         """异步上下文管理器模式：结束计时并记录"""
         elapsed = perf_counter() - self.start_time
         if exc_type is not None:
-            mylog.error(
-                f' TimerWrapt {self.description} | 失败耗时:{elapsed:.4f}秒',
-                callfrom=self.__aexit__,
-            )
+            mylog.error(f' {self.description} 失败耗时:{elapsed:.4f}秒')
             return
-        mylog.info(
-            f' TimerWrapt {self.description} | 执行耗时:{elapsed:.4f}秒',
-            callfrom=self.__aexit__,
-        )
+        mylog.info(f' {self.description} 执行耗时:{elapsed:.4f}秒')
 
 
 __all__ = [

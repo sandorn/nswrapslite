@@ -31,7 +31,7 @@ from functools import wraps
 from time import perf_counter
 from typing import Any
 
-from .utils import _is_async_function
+from .utils import is_async_function
 
 
 class BaseWrapper(ABC):
@@ -57,7 +57,7 @@ class BaseWrapper(ABC):
         Returns:
             Callable: 装饰后的函数
         """
-        if _is_async_function(func):
+        if is_async_function(func):
             return self._wrap_async(func)
         return self._wrap_sync(func)
 

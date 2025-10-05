@@ -29,7 +29,7 @@ from typing import Any
 from xtlog import mylog
 
 from .exception import _handle_exception
-from .utils import _get_function_location, _is_async_function
+from .utils import get_function_location, is_async_function
 
 
 def _create_sync_wrapper(func: Callable[..., Any], log_args: bool, log_result: bool, re_raise: bool, default_return: Any, log_traceback: bool) -> Callable[..., Any]:
@@ -38,7 +38,7 @@ def _create_sync_wrapper(func: Callable[..., Any], log_args: bool, log_result: b
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         # 获取函数信息用于日志记录
-        log_context = _get_function_location(func)
+        log_context = get_function_location(func)
 
         if log_args:
             mylog.debug(f'{log_context} | Args: {args} | Kwargs: {kwargs}')
@@ -60,7 +60,7 @@ def _create_async_wrapper(func: Callable[..., Any], log_args: bool, log_result: 
     @wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         # 获取函数信息用于日志记录
-        log_context = _get_function_location(func)
+        log_context = get_function_location(func)
 
         if log_args:
             mylog.debug(f'{log_context} | Args: {args} | Kwargs: {kwargs}')
@@ -118,7 +118,7 @@ def logging_wraps(
 
     def decorator(func_inner: Callable[..., Any]) -> Callable[..., Any]:
         """实际的装饰器实现"""
-        if _is_async_function(func_inner):
+        if is_async_function(func_inner):
             return _create_async_wrapper(func_inner, log_args, log_result, re_raise, default_return, log_traceback)
 
         return _create_sync_wrapper(func_inner, log_args, log_result, re_raise, default_return, log_traceback)

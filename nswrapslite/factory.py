@@ -35,7 +35,7 @@ from typing import Any
 from xtlog import mylog
 
 from .exception import _handle_exception
-from .utils import _get_function_location
+from .utils import get_function_location, is_async_function
 
 # 类型别名
 type ExceptionTypes = tuple[type[Exception], ...]
@@ -177,18 +177,14 @@ def decorator_factory(before_hook: BeforeHook | None = None, after_hook: AfterHo
 
     def decorator(func: Callable) -> Callable:
         """通用装饰器"""
-        is_async = asyncio.iscoroutinefunction(func)
-
-        if is_async:
+        if is_async_function(func):
             return create_async_decorator_wrapper(func, before_hook, after_hook, except_hook)
         return create_sync_decorator_wrapper(func, before_hook, after_hook, except_hook)
 
     return decorator
 
 
-def timer_wrapper_factory(
-    func: Callable[..., Any] | None = None,
-) -> Callable[..., Any]:
+def timer_wrapper_factory(func: Callable[..., Any] | None = None) -> Callable[..., Any]:
     """计时装饰器工厂，记录函数执行时间
 
     Args:
@@ -243,7 +239,7 @@ def timer_wrapper_factory(
         start = context.get('start')
         if start is not None:
             end = perf_counter()
-            func_location = _get_function_location(func)
+            func_location = get_function_location(func)
             mylog.info(f'{func_location} 执行耗时: {end - start:.4f}秒')
         return result
 
@@ -263,7 +259,7 @@ def timer_wrapper_factory(
         start = context.get('start')
         if start is not None:
             end = perf_counter()
-            func_location = _get_function_location(func)
+            func_location = get_function_location(func)
             mylog.error(f'[{func_location}] 失败耗时: {end - start:.4f}秒')
         raise exc
 
@@ -350,7 +346,7 @@ def exc_wrapper_factory(
             raise exc
 
         # 使用统一的异常处理函数
-        func_location = _get_function_location(func)
+        func_location = get_function_location(func)
         custom_msg = f'{custom_message} [{func_location}]' if custom_message else f'[{func_location}]'
         return _handle_exception(exc=exc, re_raise=re_raise, default_return=default_return, log_traceback=log_traceback, custom_message=custom_msg)
 
@@ -420,7 +416,7 @@ def log_wrapper_factory(
             context: 上下文字典
         """
         if log_args:
-            func_location = _get_function_location(func)
+            func_location = get_function_location(func)
             mylog.debug(f'[{func_location}] args: {args}, kwargs: {kwargs}')
 
     def _after(func: Callable[..., Any], args: tuple[Any, ...], kwargs: dict[str, Any], result: Any, context: dict[str, Any]) -> Any:
@@ -434,7 +430,7 @@ def log_wrapper_factory(
             context: 上下文字典
         """
         if log_result:
-            func_location = _get_function_location(func)
+            func_location = get_function_location(func)
             mylog.success(f'[{func_location}] result: {type(result).__name__} = {result}')
         return result
 
@@ -448,7 +444,7 @@ def log_wrapper_factory(
             exc: 捕获的异常
             context: 上下文字典
         """
-        func_location = _get_function_location(func)
+        func_location = get_function_location(func)
         custom_msg = f'{custom_message} [{func_location}]' if custom_message else f'[{func_location}]'
         return _handle_exception(exc=exc, re_raise=re_raise, default_return=default_return, log_traceback=log_traceback, custom_message=custom_msg)
 

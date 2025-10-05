@@ -30,16 +30,16 @@ from typing import Any
 from xtlog import mylog
 
 # 使用相对导入
-from .utils import _is_async_function
+from .utils import is_async_function
 
 # 类型别名
 ExceptionTypes = tuple[type[Exception], ...]
 
 
 def _handle_exception(
-    exc: Exception,
+    exc: BaseException | None = None,
     re_raise: bool = False,
-    handler: Callable[[Exception], Any] | None = None,
+    handler: Callable[..., Any] | None = None,
     default_return: Any | None = None,
     log_traceback: bool = True,
     custom_message: str | None = None,
@@ -73,26 +73,31 @@ def _handle_exception(
     error_msg = str(exc)
 
     # 统一的日志格式
-    error_message = f'except: {error_type}({error_msg})' if custom_message is None else f' {custom_message} | except: {error_type}({error_msg})'
-    # 记录警告日志
+    error_message = f' {custom_message}except: {error_type}({error_msg})' if custom_message else f'except: {error_type}({error_msg})'
     mylog.error(error_message)
-
-    # 如果需要,记录完整堆栈信息
-    if log_traceback:
-        mylog.error(traceback.format_exc())
-
-    # 根据需要重新抛出异常
-    if re_raise:
-        raise exc
 
     # 调用异常处理函数
     if handler:
         return handler(exc)
 
+    # 如果需要,记录完整堆栈信息
+    if log_traceback and exc is not None:  # 确保有异常对象
+        # 显式传入异常的类型、值和追踪信息
+        tb_str = ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+        mylog.error(f'traceback | {tb_str}')
+    elif log_traceback:
+        mylog.error('traceback | No exception traceback available (exc is None)')
+
+    # 根据需要重新抛出异常
+    if re_raise and exc is not None:
+        raise exc
+
     return default_return
 
 
 def exception_wraps(
+    fn: Callable[..., Any] | None = None,
+    *,
     re_raise: bool = False,
     handler: Callable[[Exception], Any] | None = None,
     default_return: Any | None = None,
@@ -140,7 +145,7 @@ def exception_wraps(
     def decorator(func: Callable) -> Callable:
         """装饰器函数"""
 
-        if _is_async_function(func):
+        if is_async_function(func):
             # 异步函数异常捕获装饰器
             @wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -163,7 +168,7 @@ def exception_wraps(
 
         return sync_wrapper
 
-    return decorator
+    return decorator if fn is None else decorator(fn)
 
 
 __all__ = ['exception_wraps']

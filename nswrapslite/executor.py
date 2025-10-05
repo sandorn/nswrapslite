@@ -34,7 +34,7 @@ from typing import Any
 
 # 使用相对导入
 from .exception import _handle_exception
-from .utils import _is_async_function
+from .utils import is_async_function
 
 # 常量定义
 DEFAULT_EXECUTOR_MAX_WORKERS = 10  # 默认线程池最大工作线程数
@@ -46,6 +46,7 @@ _default_executor = ThreadPoolExecutor(max_workers=DEFAULT_EXECUTOR_MAX_WORKERS,
 
 def _create_future_exception_handler() -> Callable[[asyncio.Future[Any]], None]:
     """创建统一的Future异常处理回调函数"""
+
     def exception_handler(fut: asyncio.Future[Any]) -> None:
         # 单独处理CancelledError，因为这是预期行为
         if fut.cancelled():
@@ -185,7 +186,7 @@ def async_executor(
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         used_executor = executor or _default_executor
 
-        if _is_async_function(func):
+        if is_async_function(func):
             if background:
                 return _create_async_task_wrapper(func)
             return _create_async_error_wrapper(func)
@@ -230,7 +231,7 @@ def syncify(fn: Callable[..., Any] | None = None) -> Callable[[Callable[..., Any
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            if _is_async_function(func):
+            if is_async_function(func):
                 try:
                     loop = _get_event_loop()
                     if loop.is_running():

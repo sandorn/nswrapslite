@@ -35,17 +35,17 @@ from .exception import exception_wraps
 from .executor import async_executor, await_future_with_timeout, run_on_executor, syncify, to_future
 from .factory import decorator_factory, exc_wrapper_factory, log_wrapper_factory, timer_wrapper_factory
 from .log import logging_wraps
-from .retry import retry_async_wraps, retry_future, retry_request, retry_wraps
+from .retry import retry_future, retry_request, retry_wraps
 from .singleton import SingletonMeta, SingletonMixin, SingletonWraps, singleton
 from .strategy import TimerStrategy, UniversalFunctionWrapper
-from .tenacityretry import TRETRY, retry_wraps_tenacity
+from .tenacityretry import TRETRY, tenacity_retry_wraps
 from .timer import TimerWrapt, timer, timer_wraps
-from .utils import _get_function_signature, _is_async_function, _is_sync_function
+from .utils import get_function_location, get_function_signature, is_async_function, is_sync_function
 from .validate import TypedProperty, ensure_initialized, readonly, type_check, type_check_wrapper, typed_property
 from .wrapped import decorator_transformer, timing_decorator
 
 # 版本信息
-__version__ = '0.0.9'
+__version__ = '0.1.0'
 __author__ = 'sandorn'
 __email__ = 'sandorn@live.cn'
 
@@ -76,16 +76,16 @@ __all__ = (
     'type_check_wrapper',
     'type_check',
     'typed_property',
-    '_get_function_signature',
-    '_is_async_function',
-    '_is_sync_function',
-    'retry_async_wraps',
+    'get_function_signature',
+    'is_async_function',
+    'is_sync_function',
     'retry_future',
     'retry_request',
-    'retry_wraps_tenacity',
+    'tenacity_retry_wraps',
     'decorator_transformer',
     'timing_decorator',
     'TRETRY',
     'UniversalFunctionWrapper',
     'TimerStrategy',
+    'get_function_location',
 )
