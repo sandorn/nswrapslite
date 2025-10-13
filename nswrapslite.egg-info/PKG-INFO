@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: nswrapslite
-Version: 0.1.0
+Version: 0.1.1
 Summary: 功能强大的Python装饰器工具库，提供各种实用的装饰器和工具函数
 Author-email: sandorn <sandorn@live.cn>
 License: MIT License
@@ -184,6 +184,12 @@ result2 = expensive_computation(10, 20)
 请查看 [examples](examples/) 目录下的示例文件，了解更多使用方法：
 
 ## 功能变化
+
+### 版本 0.1.1 更新内容
+- **枚举类优化**：优化BaseEnum和StrEnum的使用方式和文档说明
+- **最佳实践更新**：提供异常处理和类型使用的最佳实践指南
+- **代码结构优化**：进一步优化模块组织，提高代码可读性和可维护性
+- **文档完善**：更新功能说明和使用注意事项
 
 ### 版本 0.1.0 更新内容
 - **API 稳定性提升**：所有核心API已稳定，适合生产环境使用
