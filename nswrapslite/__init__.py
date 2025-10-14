@@ -73,6 +73,11 @@ __all__ = (
     'log_wrapper_factory',
     'logging_wraps',
     'readonly',
+<<<<<<< HEAD
+=======
+    'retry_future',
+    'retry_request',
+>>>>>>> 22d68c8975e107f2148ba6f89c0db3f161ac95dc
     'retry_wraps',
     'run_on_executor',
     'singleton',
