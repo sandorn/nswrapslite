@@ -34,7 +34,7 @@ from typing import Any
 
 from xtlog import mylog
 
-from .exception import _handle_exception
+from .exception import handle_exception
 from .utils import get_function_location, is_async_function
 
 # 类型别名
@@ -47,7 +47,7 @@ type AfterHook = Callable[[Callable[..., Any], tuple[Any, ...], dict[str, Any], 
 type ExceptHook = Callable[[Callable[..., Any], tuple[Any, ...], dict[str, Any], Exception, dict[str, Any]], Any]
 
 
-async def execute_async_or_sync(fn: Callable[..., Any] | None, *args: Any, **kwargs: Any) -> Any:
+async def run_sync_or_async(fn: Callable[..., Any] | None, *args: Any, **kwargs: Any) -> Any:
     """执行函数，自动处理同步或异步调用
 
     Args:
@@ -60,8 +60,10 @@ async def execute_async_or_sync(fn: Callable[..., Any] | None, *args: Any, **kwa
     """
     if fn is None:
         return None
+
     if asyncio.iscoroutinefunction(fn):
         return await fn(*args, **kwargs)
+
     return fn(*args, **kwargs)
 
 
@@ -94,7 +96,7 @@ def create_async_decorator_wrapper(func: Callable, before_hook: BeforeHook | Non
 
         # 处理前置钩子
         if before_hook:
-            hook_result = await execute_async_or_sync(before_hook, func, args, kwargs, context)
+            hook_result = await run_sync_or_async(before_hook, func, args, kwargs, context)
             if hook_result is not None:
                 return hook_result
 
@@ -104,14 +106,14 @@ def create_async_decorator_wrapper(func: Callable, before_hook: BeforeHook | Non
         except Exception as e:
             # 处理异常钩子
             if except_hook:
-                hook_result = await execute_async_or_sync(except_hook, func, args, kwargs, e, context)
+                hook_result = await run_sync_or_async(except_hook, func, args, kwargs, e, context)
                 if hook_result is not None:
                     return hook_result
             raise
 
         # 处理后置钩子
         if after_hook:
-            after_result = await execute_async_or_sync(after_hook, func, args, kwargs, result, context)
+            after_result = await run_sync_or_async(after_hook, func, args, kwargs, result, context)
             return after_result if after_result is not None else result
         return result
 
@@ -282,20 +284,18 @@ def exc_wrapper_factory(
     func: Callable[..., Any] | None = None,
     *,
     re_raise: bool = True,
-    default_return: Any = None,
     allowed_exceptions: ExceptionTypes = (Exception,),
     log_traceback: bool = True,
-    custom_message: str | None = None,
+    custom_message: str = '',
 ) -> Callable[..., Any]:
     """通用异常处理装饰器，支持同步和异步函数
 
     Args:
         func: 被装饰的函数，支持直接装饰和带参数装饰两种方式
         re_raise: 是否重新抛出异常，默认False
-        default_return: 发生异常时的默认返回值，默认None
         allowed_exceptions: 允许捕获的异常类型元组，默认捕获所有异常
         log_traceback: 是否记录完整堆栈信息，默认True
-        custom_message: 自定义错误提示信息，默认None
+        custom_message: 自定义错误提示信息，默认空字符串
 
     Returns:
         Callable: 装饰后的函数
@@ -310,7 +310,7 @@ def exc_wrapper_factory(
         ...     return a / b
 
         >>> # 只捕获特定异常，其他异常会重新抛出
-        >>> @exc_wrapper(allowed_exceptions=(ZeroDivisionError,), re_raise=False, default_return=0)
+        >>> @exc_wrapper(allowed_exceptions=(ZeroDivisionError,), re_raise=False)
         ... def safe_divide(a: int, b: int) -> float:
         ...     return a / b
 
@@ -347,8 +347,7 @@ def exc_wrapper_factory(
 
         # 使用统一的异常处理函数
         func_location = get_function_location(func)
-        custom_msg = f'{custom_message} [{func_location}]' if custom_message else f'[{func_location}]'
-        return _handle_exception(exc=exc, re_raise=re_raise, default_return=default_return, log_traceback=log_traceback, custom_message=custom_msg)
+        handle_exception(exc=exc, re_raise=re_raise, log_traceback=log_traceback, custom_message=f' {custom_message} {func_location}')
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         """装饰器内部函数
@@ -369,23 +368,21 @@ def exc_wrapper_factory(
 def log_wrapper_factory(
     func: Callable[..., Any] | None = None,
     *,
-    re_raise: bool = True,
-    default_return: Any = None,
+    re_raise: bool = False,
     log_args: bool = True,
     log_result: bool = True,
     log_traceback: bool = True,
-    custom_message: str | None = None,
+    custom_message: str = '',
 ) -> Callable[..., Any]:
     """日志装饰器，记录函数调用信息
 
     Args:
         func: 被装饰的函数，支持直接装饰和带参数装饰两种方式
         re_raise: 是否重新抛出异常，默认False
-        default_return: 发生异常时的默认返回值，默认None
         log_args: 是否记录函数参数，默认True
         log_result: 是否记录函数结果，默认True
         log_traceback: 是否记录完整堆栈信息，默认True
-        custom_message: 自定义日志消息，默认None
+        custom_message: 自定义日志消息，默认空字符串
 
     Returns:
         Callable: 包装后的函数
@@ -417,7 +414,7 @@ def log_wrapper_factory(
         """
         if log_args:
             func_location = get_function_location(func)
-            mylog.debug(f'[{func_location}] args: {args}, kwargs: {kwargs}')
+            mylog.debug(f' {custom_message} {func_location} args: {args}, kwargs: {kwargs}')
 
     def _after(func: Callable[..., Any], args: tuple[Any, ...], kwargs: dict[str, Any], result: Any, context: dict[str, Any]) -> Any:
         """日志装饰器后置钩子
@@ -445,8 +442,7 @@ def log_wrapper_factory(
             context: 上下文字典
         """
         func_location = get_function_location(func)
-        custom_msg = f'{custom_message} [{func_location}]' if custom_message else f'[{func_location}]'
-        return _handle_exception(exc=exc, re_raise=re_raise, default_return=default_return, log_traceback=log_traceback, custom_message=custom_msg)
+        handle_exception(exc=exc, re_raise=re_raise, log_traceback=log_traceback, custom_message=f' {custom_message} {func_location}')
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         """装饰器内部函数

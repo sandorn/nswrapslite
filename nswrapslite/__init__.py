@@ -35,7 +35,7 @@ from .exception import exception_wraps
 from .executor import async_executor, await_future_with_timeout, run_on_executor, syncify, to_future
 from .factory import decorator_factory, exc_wrapper_factory, log_wrapper_factory, timer_wrapper_factory
 from .log import logging_wraps
-from .retry import retry_future, retry_request, retry_wraps
+from .retry import retry_wraps
 from .singleton import SingletonMeta, SingletonMixin, SingletonWraps, singleton
 from .strategy import TimerStrategy, UniversalFunctionWrapper
 from .tenacityretry import TRETRY, tenacity_retry_wraps
@@ -45,47 +45,45 @@ from .validate import TypedProperty, ensure_initialized, readonly, type_check, t
 from .wrapped import decorator_transformer, timing_decorator
 
 # 版本信息
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __author__ = 'sandorn'
 __email__ = 'sandorn@live.cn'
 
 __all__ = (
+    'TRETRY',
     'SingletonMeta',
     'SingletonMixin',
     'SingletonWraps',
+    'TimerStrategy',
     'TimerWrapt',
     'TypedProperty',
+    'UniversalFunctionWrapper',
+    'async_executor',
+    'await_future_with_timeout',
     'cache_wrapper',
     'decorator_factory',
+    'decorator_transformer',
     'ensure_initialized',
     'exc_wrapper_factory',
     'exception_wraps',
-    'async_executor',
-    'to_future',
-    'await_future_with_timeout',
-    'syncify',
-    'run_on_executor',
+    'get_function_location',
+    'get_function_signature',
+    'is_async_function',
+    'is_sync_function',
     'log_wrapper_factory',
     'logging_wraps',
     'readonly',
     'retry_wraps',
+    'run_on_executor',
     'singleton',
+    'syncify',
+    'tenacity_retry_wraps',
     'timer',
     'timer_wrapper_factory',
     'timer_wraps',
-    'type_check_wrapper',
-    'type_check',
-    'typed_property',
-    'get_function_signature',
-    'is_async_function',
-    'is_sync_function',
-    'retry_future',
-    'retry_request',
-    'tenacity_retry_wraps',
-    'decorator_transformer',
     'timing_decorator',
-    'TRETRY',
-    'UniversalFunctionWrapper',
-    'TimerStrategy',
-    'get_function_location',
+    'to_future',
+    'type_check',
+    'type_check_wrapper',
+    'typed_property',
 )

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 """
 ==============================================================
 Description  : 日志装饰器模块 - 提供函数执行日志记录功能
@@ -28,11 +28,11 @@ from typing import Any
 
 from xtlog import mylog
 
-from .exception import _handle_exception
+from .exception import handle_exception
 from .utils import get_function_location, is_async_function
 
 
-def _create_sync_wrapper(func: Callable[..., Any], log_args: bool, log_result: bool, re_raise: bool, default_return: Any, log_traceback: bool) -> Callable[..., Any]:
+def _create_sync_wrapper(func: Callable[..., Any], log_args: bool, log_result: bool, re_raise: bool, log_traceback: bool, custom_message: str) -> Callable[..., Any]:
     """创建同步函数包装器"""
 
     @wraps(func)
@@ -49,12 +49,12 @@ def _create_sync_wrapper(func: Callable[..., Any], log_args: bool, log_result: b
                 mylog.success(f'{log_context} | Result: {type(result).__name__} = {result}')
             return result
         except Exception as err:
-            return _handle_exception(exc=err, default_return=default_return, re_raise=re_raise, log_traceback=log_traceback, custom_message=log_context)
+            handle_exception(exc=err, re_raise=re_raise, log_traceback=log_traceback, custom_message=f'{custom_message} {log_context}')
 
     return wrapper
 
 
-def _create_async_wrapper(func: Callable[..., Any], log_args: bool, log_result: bool, re_raise: bool, default_return: Any, log_traceback: bool) -> Callable[..., Any]:
+def _create_async_wrapper(func: Callable[..., Any], log_args: bool, log_result: bool, re_raise: bool, log_traceback: bool, custom_message: str) -> Callable[..., Any]:
     """创建异步函数包装器"""
 
     @wraps(func)
@@ -71,7 +71,7 @@ def _create_async_wrapper(func: Callable[..., Any], log_args: bool, log_result: 
                 mylog.success(f'{log_context} | Result: {type(result).__name__} = {result}')
             return result
         except Exception as err:
-            return _handle_exception(exc=err, default_return=default_return, re_raise=re_raise, log_traceback=log_traceback, custom_message=log_context)
+            handle_exception(exc=err, re_raise=re_raise, log_traceback=log_traceback, custom_message=f'{custom_message} {log_context}')
 
     return wrapper
 
@@ -80,10 +80,10 @@ def logging_wraps(
     func: Callable[..., Any] | None = None,
     *,
     re_raise: bool = False,
-    default_return: Any = None,
     log_args: bool = True,
     log_result: bool = True,
     log_traceback: bool = True,
+    custom_message: str = '',
 ) -> Callable[..., Any]:
     """
     简化版日志装饰器
@@ -100,8 +100,7 @@ def logging_wraps(
         log_result: 是否记录函数返回值，默认为True
         log_traceback: 是否记录完整堆栈信息，默认为True
         re_raise: 是否重新抛出异常，默认为True
-        default_return: 异常时的默认返回值，默认为None
-        custom_message: 自定义日志消息，默认None
+        custom_message: 自定义日志消息，默认""
 
     Returns:
         Callable: 装饰后的函数
@@ -119,9 +118,9 @@ def logging_wraps(
     def decorator(func_inner: Callable[..., Any]) -> Callable[..., Any]:
         """实际的装饰器实现"""
         if is_async_function(func_inner):
-            return _create_async_wrapper(func_inner, log_args, log_result, re_raise, default_return, log_traceback)
+            return _create_async_wrapper(func_inner, log_args, log_result, re_raise, log_traceback, custom_message)
 
-        return _create_sync_wrapper(func_inner, log_args, log_result, re_raise, default_return, log_traceback)
+        return _create_sync_wrapper(func_inner, log_args, log_result, re_raise, log_traceback, custom_message)
 
     return decorator(func) if func else decorator
 

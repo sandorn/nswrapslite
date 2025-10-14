@@ -8,7 +8,7 @@ LastEditTime : 2025-10-01 15:30:00
 Github       : https://github.com/sandorn/nswrapslite
 
 本模块提供以下核心功能：
-- _handle_exception：异常处理函数，记录异常信息
+- handle_exception：异常处理函数，记录异常信息
 - exception_wraps：异常捕获和处理装饰器，支持同步和异步函数
 
 主要特性：
@@ -36,14 +36,13 @@ from .utils import is_async_function
 ExceptionTypes = tuple[type[Exception], ...]
 
 
-def _handle_exception(
+def handle_exception(
     exc: BaseException | None = None,
     re_raise: bool = False,
     handler: Callable[..., Any] | None = None,
-    default_return: Any | None = None,
     log_traceback: bool = True,
-    custom_message: str | None = None,
-) -> Any | None:
+    custom_message: str = '',
+):
     """
     统一的异常处理函数，提供完整的异常捕获、记录和处理机制
 
@@ -51,12 +50,11 @@ def _handle_exception(
         exc: 异常对象
         re_raise: 是否重新抛出异常，默认False（不抛出异常）
         handler: 异常处理函数，默认None（不处理）
-        default_return: 不抛出异常时的默认返回值，default_return为None时返回错误信息字符串
         log_traceback: 是否记录完整堆栈信息，默认True
-        custom_message: 自定义错误提示信息，默认None
+        custom_message: 自定义错误提示信息，默认''
 
     Returns:
-        Any: 如果re_raise=True，重新抛出异常；否则返回default_return或错误信息字符串
+        Any: 如果re_raise=True，重新抛出异常
 
     Example:
         >>> # 基本使用
@@ -64,7 +62,7 @@ def _handle_exception(
         ...     result = 10 / 0
         ... except Exception as e:
         ...     # 记录异常但不中断程序
-        ...     result = handle_exception(e, re_raise=False, default_return=0)
+        ...     handle_exception(e, re_raise=False)
         >>> print(result)  # 输出: 0
     """
 
@@ -73,12 +71,12 @@ def _handle_exception(
     error_msg = str(exc)
 
     # 统一的日志格式
-    error_message = f' {custom_message}except: {error_type}({error_msg})' if custom_message else f'except: {error_type}({error_msg})'
+    error_message = f' {custom_message}except: {error_type}({error_msg})'
     mylog.error(error_message)
 
     # 调用异常处理函数
     if handler:
-        return handler(exc)
+        handler(exc)
 
     # 如果需要,记录完整堆栈信息
     if log_traceback and exc is not None:  # 确保有异常对象
@@ -92,18 +90,15 @@ def _handle_exception(
     if re_raise and exc is not None:
         raise exc
 
-    return default_return
-
 
 def exception_wraps(
     fn: Callable[..., Any] | None = None,
     *,
     re_raise: bool = False,
     handler: Callable[[Exception], Any] | None = None,
-    default_return: Any | None = None,
     allowed_exceptions: ExceptionTypes = (Exception,),
     log_traceback: bool = True,
-    custom_message: str | None = None,
+    custom_message: str = '',
 ) -> Callable:
     """
     通用异常处理装饰器 - 支持同步和异步函数
@@ -112,7 +107,6 @@ def exception_wraps(
         func: 被装饰的函数(支持直接装饰和带参数装饰两种方式)
         re_raise: 是否重新抛出异常，默认True（抛出异常）
         handler: 异常处理函数，默认None（不处理）
-        default_return: 发生异常时的默认返回值，None时返回错误信息字符串
         allowed_exceptions: 允许捕获的异常类型元组，默认捕获所有异常
         log_traceback: 是否记录完整堆栈信息，默认True
         custom_message: 自定义错误提示信息，默认None
@@ -127,7 +121,7 @@ def exception_wraps(
         ...     return a / b
 
         >>> # 只捕获特定异常，其他异常会重新抛出
-        >>> @exc_wraps(allowed_exceptions=(ZeroDivisionError,), re_raise=False, default_return=0)
+        >>> @exc_wraps(allowed_exceptions=(ZeroDivisionError,), re_raise=False)
         ... def safe_divide(a, b):
         ...     return a / b
 
@@ -153,7 +147,7 @@ def exception_wraps(
                 try:
                     return await func(*args, **kwargs)
                 except allowed_exceptions as exc:
-                    return _handle_exception(exc, re_raise, handler, default_return, log_traceback, custom_message)
+                    handle_exception(exc, re_raise, handler, log_traceback, custom_message)
 
             return async_wrapper
 
@@ -164,7 +158,7 @@ def exception_wraps(
             try:
                 return func(*args, **kwargs)
             except allowed_exceptions as exc:
-                return _handle_exception(exc, re_raise, handler, default_return, log_traceback, custom_message)
+                handle_exception(exc, re_raise, handler, log_traceback, custom_message)
 
         return sync_wrapper
 

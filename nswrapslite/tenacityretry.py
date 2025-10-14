@@ -38,7 +38,7 @@ import requests
 import urllib3.exceptions
 from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_random
 
-from .exception import _handle_exception
+from .exception import handle_exception
 from .utils import get_function_location, is_async_function
 
 TRETRY = retry(
@@ -105,7 +105,6 @@ class RetryHandler:
         exceptions: tuple[type[Exception], ...] = (Exception,),
         retry_on_result: Callable[[Any], bool] | None = None,
         re_raise: bool = False,
-        default_return: Any = None,
         handler: Callable[[Exception], Any] | None = None,
         log_traceback: bool = True,
         custom_message: str = '',
@@ -115,33 +114,32 @@ class RetryHandler:
         self.exceptions = exceptions
         self.retry_on_result = retry_on_result
         self.re_raise = re_raise
-        self.default_return = default_return
         self.handler = handler
         self.log_traceback = log_traceback
         self.custom_message = custom_message  # 策略级别的默认消息
 
-    def err_back(self, retry_state: RetryCallState) -> Any:
+    def err_back(self, retry_state: RetryCallState):
         """重试失败回调 - 记录错误日志并返回默认值
 
         Args:
             retry_state: tenacity的重试状态对象
         """
         if retry_state.outcome is None:
-            return self.default_return
+            return
 
         exc = retry_state.outcome.exception()
         if exc is None:
             # 没有异常，可能是成功但需要重试的情况
-            return self.default_return
+            return
 
         # 记录重试统计信息
         attempt_number = getattr(retry_state, 'attempt_number', 0)
-        msg = f'重试({attempt_number})次失败 |'
+        msg = f'{self.custom_message}重试({attempt_number})次失败 |'
 
-        return _handle_exception(exc=exc, re_raise=self.re_raise, handler=self.handler, default_return=self.default_return, log_traceback=self.log_traceback, custom_message=self.custom_message + msg)
+        handle_exception(exc=exc, re_raise=self.re_raise, handler=self.handler, log_traceback=self.log_traceback, custom_message=msg)
 
 
-def _create_tenacity_retry(max_retries: int, delay: float, exceptions: tuple[type[Exception], ...], handler: Callable[..., Any] | None) -> Callable:
+def _create_tenacity_adapter(max_retries: int, delay: float, exceptions: tuple[type[Exception], ...], handler: Callable[..., Any] | None) -> Callable:
     """创建tenacity重试装饰器
 
     Args:
@@ -171,10 +169,9 @@ def tenacity_retry_wraps(
     exceptions: tuple[type[Exception], ...] = (Exception,),
     retry_on_result: Callable[[Any], bool] | None = None,
     re_raise: bool = False,
-    default_return: Any = None,
     handler: Callable[[Exception], Any] | None = None,
     log_traceback: bool = True,
-    custom_message: str | None = None,
+    custom_message: str = '',
 ) -> Callable:
     """重试装饰器 - 基于tenacity库，提供函数执行失败自动重试功能，支持同步和异步函数
 
@@ -193,10 +190,9 @@ def tenacity_retry_wraps(
         exceptions: 触发重试的异常类型元组，默认(Exception,)
         retry_on_result: 自定义结果判断函数，默认None
         re_raise: 是否重新抛出异常，默认False
-        default_return: 不抛出异常时的默认返回值，默认None
         handler: 异常处理函数，默认retry_handler.err_back
         log_traceback: 是否记录完整堆栈信息，默认True
-        custom_message: 自定义错误提示信息，默认None
+        custom_message: 自定义错误提示信息，默认空字符串
 
     Returns:
         装饰后的函数，保持原函数签名和类型
@@ -204,7 +200,7 @@ def tenacity_retry_wraps(
 
     def decorator(func: Callable) -> Callable:
         # 创建RetryHandler实例,设置基础消息和默认返回
-        custom_message = get_function_location(func)
+        func_location = get_function_location(func)
 
         retry_handler = RetryHandler(
             max_retries=max_retries,
@@ -212,23 +208,21 @@ def tenacity_retry_wraps(
             exceptions=exceptions,
             retry_on_result=retry_on_result,
             re_raise=re_raise,
-            default_return=default_return,
             handler=handler,
             log_traceback=log_traceback,
-            custom_message=custom_message,
+            custom_message=f'{custom_message} {func_location}',
         )
 
         # 创建tenacity的retry装饰器
-        tenacity_retry = _create_tenacity_retry(max_retries, delay, exceptions, handler or retry_handler.err_back)
+        tenacity_retry = _create_tenacity_adapter(max_retries, delay, exceptions, handler or retry_handler.err_back)
         # 同步函数包装器
 
         @wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
-                # 使用tenacity_retry包装函数调用
                 return tenacity_retry(func)(*args, **kwargs)
             except Exception as exc:
-                return _handle_exception(exc=exc, re_raise=re_raise, handler=handler, default_return=default_return, log_traceback=log_traceback, custom_message=custom_message)
+                handle_exception(exc=exc, re_raise=re_raise, handler=handler, log_traceback=log_traceback, custom_message=custom_message)
 
         # 异步函数包装器
         @wraps(func)
@@ -237,7 +231,7 @@ def tenacity_retry_wraps(
                 # 使用tenacity_retry包装函数调用
                 return await tenacity_retry(func)(*args, **kwargs)
             except Exception as exc:
-                return _handle_exception(exc=exc, re_raise=re_raise, handler=handler, default_return=default_return, log_traceback=log_traceback, custom_message=custom_message)
+                handle_exception(exc=exc, re_raise=re_raise, handler=handler, log_traceback=log_traceback, custom_message=custom_message)
 
         # 根据函数类型返回相应的包装器
         if is_async_function(func):
@@ -248,6 +242,6 @@ def tenacity_retry_wraps(
 
 
 __all__ = [
-    'tenacity_retry_wraps',
     'TRETRY',
+    'tenacity_retry_wraps',
 ]

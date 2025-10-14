@@ -13,10 +13,9 @@ import asyncio
 import time
 from typing import Any
 
-from xtlog import mylog
-
 # 导入log模块中的功能
 from nswrapslite.log import logging_wraps
+from xtlog import mylog
 
 # 配置日志级别
 mylog.set_level('INFO')

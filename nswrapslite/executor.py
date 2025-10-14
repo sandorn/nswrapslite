@@ -33,7 +33,7 @@ from functools import partial, wraps
 from typing import Any
 
 # 使用相对导入
-from .exception import _handle_exception
+from .exception import handle_exception
 from .utils import is_async_function
 
 # 常量定义
@@ -57,10 +57,10 @@ def _create_future_exception_handler() -> Callable[[asyncio.Future[Any]], None]:
                 # 记录异常但不重新抛出
                 if isinstance(exc, BaseException) and not isinstance(exc, Exception):
                     exc = RuntimeError(f'Unexpected BaseException: {type(exc).__name__}: {exc!s}')
-                _handle_exception(exc, re_raise=False, custom_message='异步任务执行异常')
+                handle_exception(exc, re_raise=False, custom_message='异步任务执行异常')
         except Exception as err:
             # 记录异常处理过程中的错误
-            _handle_exception(err, re_raise=False, custom_message='异常处理器内部错误')
+            handle_exception(err, re_raise=False, custom_message='异常处理器内部错误')
 
     return exception_handler
 
@@ -112,7 +112,7 @@ def _create_async_task_wrapper(func: Callable[..., Any]) -> Callable[..., asynci
             try:
                 return await func(*args, **kwargs)
             except Exception as err:
-                return _handle_exception(err, re_raise=True)
+                handle_exception(err, re_raise=True)
 
         return asyncio.create_task(task_wrapper())
 
@@ -126,7 +126,7 @@ def _create_async_error_wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
         try:
             return await func(*args, **kwargs)
         except Exception as err:
-            return _handle_exception(err, re_raise=True)
+            handle_exception(err, re_raise=True)
 
     return async_wrapper
 
@@ -153,7 +153,7 @@ def _create_async_wrapper_for_sync_func(func: Callable[..., Any], executor: Thre
         try:
             return await loop.run_in_executor(executor, task_func)
         except Exception as err:
-            return _handle_exception(exc=err, re_raise=True)
+            handle_exception(exc=err, re_raise=True)
 
     return async_wrapper
 
@@ -241,13 +241,13 @@ def syncify(fn: Callable[..., Any] | None = None) -> Callable[[Callable[..., Any
                     return loop.run_until_complete(func(*args, **kwargs))
                 except Exception as err:
                     # 异常处理函数可能返回默认值，需要明确返回
-                    return _handle_exception(err, re_raise=False, default_return=None)
+                    handle_exception(err, re_raise=False)
             else:
                 try:
                     return func(*args, **kwargs)
                 except Exception as err:
                     # 异常处理函数可能返回默认值，需要明确返回
-                    return _handle_exception(err, re_raise=False, default_return=None)
+                    handle_exception(err, re_raise=False)
 
         return sync_wrapper
 
@@ -336,8 +336,7 @@ async def await_future_with_timeout(future: asyncio.Future, timeout: float | Non
         try:
             return future.result()
         except Exception as err:
-            # 设置 re_raise=True 让调用方处理异常
-            return _handle_exception(exc=err, re_raise=True)
+            handle_exception(exc=err, re_raise=True)
 
     # 设置默认超时时间
     effective_timeout = timeout if timeout is not None else DEFAULT_FUTURE_TIMEOUT
@@ -356,21 +355,21 @@ async def await_future_with_timeout(future: asyncio.Future, timeout: float | Non
                         await asyncio.wait_for(future, timeout=0.5)
             except Exception as cancel_err:
                 # 记录取消过程中的异常，但不影响主流程
-                _handle_exception(exc=cancel_err, re_raise=False, custom_message='取消任务时发生异常')
+                handle_exception(exc=cancel_err, re_raise=False, custom_message='取消任务时发生异常')
 
         # 统一处理所有异常，设置 re_raise=True 让调用方处理
         # 对于非Exception类型的异常(如CancelledError)进行转换
         if not isinstance(exc, Exception):
             exc = RuntimeError(f'非Exception类型异常: {type(exc).__name__}: {exc}')
 
-        return _handle_exception(exc=exc, re_raise=True)
+        handle_exception(exc=exc, re_raise=True)
 
 
 # 导出模块公共接口
 __all__ = [
     'async_executor',
-    'syncify',
-    'run_on_executor',
-    'to_future',
     'await_future_with_timeout',
+    'run_on_executor',
+    'syncify',
+    'to_future',
 ]
