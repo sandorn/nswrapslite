@@ -125,18 +125,20 @@ class RetryHandler:
             retry_state: tenacity的重试状态对象
         """
         if retry_state.outcome is None:
-            return
+            return None
 
         exc = retry_state.outcome.exception()
         if exc is None:
             # 没有异常，可能是成功但需要重试的情况
-            return
+            return None
 
         # 记录重试统计信息
         attempt_number = getattr(retry_state, 'attempt_number', 0)
         msg = f'{self.custom_message}重试({attempt_number})次失败 |'
 
         handle_exception(exc=exc, re_raise=self.re_raise, handler=self.handler, log_traceback=self.log_traceback, custom_message=msg)
+
+        return exc
 
 
 def _create_tenacity_adapter(max_retries: int, delay: float, exceptions: tuple[type[Exception], ...], handler: Callable[..., Any] | None) -> Callable:

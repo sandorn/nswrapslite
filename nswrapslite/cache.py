@@ -29,7 +29,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from .strategy import UniversalFunctionWrapper
+from .strategy import UnifiedWrapper
 
 
 def cache_wrapper(maxsize: int | None = 128, typed: bool = False, ttl: int | None = None) -> Callable[[Callable], Callable]:
@@ -81,7 +81,7 @@ def _make_cache_key(args: tuple, kwargs: dict, typed: bool) -> tuple:
     return key
 
 
-class CacheWrapper(UniversalFunctionWrapper):
+class CacheWrapper(UnifiedWrapper):
     """缓存装饰器类实现
 
     基于类的缓存装饰器实现，提供更多配置选项。

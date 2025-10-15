@@ -35,9 +35,9 @@ from .exception import exception_wraps
 from .executor import async_executor, await_future_with_timeout, run_on_executor, syncify, to_future
 from .factory import decorator_factory, exc_wrapper_factory, log_wrapper_factory, timer_wrapper_factory
 from .log import logging_wraps
-from .retry import retry_wraps
+from .retry import retry_future, retry_request, retry_wraps, spider_retry
 from .singleton import SingletonMeta, SingletonMixin, SingletonWraps, singleton
-from .strategy import TimerStrategy, UniversalFunctionWrapper
+from .strategy import TimerStrategy, UnifiedWrapper
 from .tenacityretry import TRETRY, tenacity_retry_wraps
 from .timer import TimerWrapt, timer, timer_wraps
 from .utils import get_function_location, get_function_signature, is_async_function, is_sync_function
@@ -45,7 +45,7 @@ from .validate import TypedProperty, ensure_initialized, readonly, type_check, t
 from .wrapped import decorator_transformer, timing_decorator
 
 # 版本信息
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 __author__ = 'sandorn'
 __email__ = 'sandorn@live.cn'
 
@@ -57,7 +57,7 @@ __all__ = (
     'TimerStrategy',
     'TimerWrapt',
     'TypedProperty',
-    'UniversalFunctionWrapper',
+    'UnifiedWrapper',
     'async_executor',
     'await_future_with_timeout',
     'cache_wrapper',
@@ -73,14 +73,12 @@ __all__ = (
     'log_wrapper_factory',
     'logging_wraps',
     'readonly',
-<<<<<<< HEAD
-=======
     'retry_future',
     'retry_request',
->>>>>>> 22d68c8975e107f2148ba6f89c0db3f161ac95dc
     'retry_wraps',
     'run_on_executor',
     'singleton',
+    'spider_retry',
     'syncify',
     'tenacity_retry_wraps',
     'timer',

@@ -9,9 +9,9 @@ Github       : https://github.com/sandorn/nswrapslite
 
 本模块提供以下核心功能：
 - BaseWrapper：装饰器基类，提供装饰器的通用逻辑和接口
-- SyncFunctionWrapper：同步函数包装器，处理同步函数的装饰逻辑
-- AsyncFunctionWrapper：异步函数包装器，处理异步函数的装饰逻辑
-- UniversalFunctionWrapper：通用函数包装器，同时支持同步和异步函数
+- SyncWrapper：同步函数包装器，处理同步函数的装饰逻辑
+- AsyncWrapper：异步函数包装器，处理异步函数的装饰逻辑
+- UnifiedWrapper：统一函数包装器，同时支持同步和异步函数
 - 支持元数据保留和原始函数特征继承
 
 主要特性：
@@ -41,80 +41,36 @@ class BaseWrapper(ABC):
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        """初始化装饰器
-
-        Args:
-            **kwargs: 装饰器配置参数
-        """
         self.config = kwargs
 
     def __call__(self, func: Callable) -> Callable:
-        """装饰器调用接口
-
-        Args:
-            func: 被装饰的函数
-
-        Returns:
-            Callable: 装饰后的函数
-        """
         if is_async_function(func):
             return self._wrap_async(func)
         return self._wrap_sync(func)
 
     @abstractmethod
     def _wrap_sync(self, func: Callable) -> Callable:
-        """包装同步函数
-
-        Args:
-            func: 被装饰的同步函数
-
-        Returns:
-            Callable: 装饰后的同步函数
-        """
+        """包装同步函数"""
         pass
 
     @abstractmethod
     def _wrap_async(self, func: Callable) -> Callable:
-        """包装异步函数
-
-        Args:
-            func: 被装饰的异步函数
-
-        Returns:
-            Callable: 装饰后的异步函数
-        """
+        """包装异步函数"""
         pass
 
 
-class SyncFunctionWrapper(BaseWrapper):
+class SyncWrapper(BaseWrapper):
     """同步函数装饰器基类
 
     专门用于同步函数的装饰器基类，不支持异步函数。
     """
 
     def _wrap_async(self, func: Callable) -> Callable:
-        """包装异步函数（不支持）
-
-        Args:
-            func: 被装饰的异步函数
-
-        Returns:
-            Callable: 装饰后的异步函数
-
-        Raises:
-            TypeError: 当尝试包装异步函数时抛出
-        """
+        """包装异步函数（不支持）"""
         raise TypeError(f'{self.__class__.__name__} 不支持异步函数')
 
     def _wrap_sync(self, func: Callable) -> Callable:
-        """包装同步函数
-
-        Args:
-            func: 被装饰的同步函数
-
-        Returns:
-            Callable: 装饰后的同步函数
-        """
+        """包装同步函数"""
 
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -124,48 +80,22 @@ class SyncFunctionWrapper(BaseWrapper):
 
     @abstractmethod
     def _execute_sync(self, func: Callable, args: tuple, kwargs: dict) -> Any:
-        """执行同步函数
-
-        Args:
-            func: 被装饰的函数
-            args: 位置参数
-            kwargs: 关键字参数
-
-        Returns:
-            Any: 函数执行结果
-        """
+        """执行同步函数"""
         pass
 
 
-class AsyncFunctionWrapper(BaseWrapper):
+class AsyncWrapper(BaseWrapper):
     """异步函数装饰器基类
 
     专门用于异步函数的装饰器基类，不支持同步函数。
     """
 
     def _wrap_sync(self, func: Callable) -> Callable:
-        """包装同步函数（不支持）
-
-        Args:
-            func: 被装饰的同步函数
-
-        Returns:
-            Callable: 装饰后的同步函数
-
-        Raises:
-            TypeError: 当尝试包装同步函数时抛出
-        """
+        """包装同步函数（不支持）"""
         raise TypeError(f'{self.__class__.__name__} 不支持同步函数')
 
     def _wrap_async(self, func: Callable) -> Callable:
-        """包装异步函数
-
-        Args:
-            func: 被装饰的异步函数
-
-        Returns:
-            Callable: 装饰后的异步函数
-        """
+        """包装异步函数"""
 
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -175,34 +105,18 @@ class AsyncFunctionWrapper(BaseWrapper):
 
     @abstractmethod
     async def _execute_async(self, func: Callable, args: tuple, kwargs: dict) -> Any:
-        """执行异步函数
-
-        Args:
-            func: 被装饰的函数
-            args: 位置参数
-            kwargs: 关键字参数
-
-        Returns:
-            Any: 函数执行结果
-        """
+        """执行异步函数"""
         pass
 
 
-class UniversalFunctionWrapper(BaseWrapper):
+class UnifiedWrapper(BaseWrapper):
     """通用函数装饰器基类
 
     同时支持同步和异步函数的装饰器基类，提供统一的接口实现。
     """
 
     def _wrap_sync(self, func: Callable) -> Callable:
-        """包装同步函数
-
-        Args:
-            func: 被装饰的同步函数
-
-        Returns:
-            Callable: 装饰后的同步函数
-        """
+        """包装同步函数"""
 
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -211,14 +125,7 @@ class UniversalFunctionWrapper(BaseWrapper):
         return wrapper
 
     def _wrap_async(self, func: Callable) -> Callable:
-        """包装异步函数
-
-        Args:
-            func: 被装饰的异步函数
-
-        Returns:
-            Callable: 装饰后的异步函数
-        """
+        """包装异步函数"""
 
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -227,33 +134,15 @@ class UniversalFunctionWrapper(BaseWrapper):
         return wrapper
 
     def _execute_sync(self, func: Callable, args: tuple, kwargs: dict) -> Any:
-        """执行同步函数
-
-        Args:
-            func: 被装饰的函数
-            args: 位置参数
-            kwargs: 关键字参数
-
-        Returns:
-            Any: 函数执行结果
-        """
+        """执行同步函数"""
         return func(*args, **kwargs)
 
     async def _execute_async(self, func: Callable, args: tuple, kwargs: dict) -> Any:
-        """执行异步函数
-
-        Args:
-            func: 被装饰的函数
-            args: 位置参数
-            kwargs: 关键字参数
-
-        Returns:
-            Any: 函数执行结果
-        """
+        """执行异步函数"""
         return await func(*args, **kwargs)
 
 
-class TimerStrategy(UniversalFunctionWrapper):
+class TimerStrategy(UnifiedWrapper):
     """计时器装饰器类实现
 
     基于类的计时器装饰器实现，提供更多配置选项。
@@ -270,16 +159,7 @@ class TimerStrategy(UniversalFunctionWrapper):
         super().__init__(log_level=log_level, log_args=log_args, log_result=log_result)
 
     def _execute_sync(self, func: Callable, args: tuple, kwargs: dict) -> Any:
-        """执行同步函数
-
-        Args:
-            func: 被装饰的函数
-            args: 位置参数
-            kwargs: 关键字参数
-
-        Returns:
-            Any: 函数执行结果
-        """
+        """执行同步函数"""
         start_time = perf_counter()
 
         try:
@@ -301,16 +181,7 @@ class TimerStrategy(UniversalFunctionWrapper):
             raise
 
     async def _execute_async(self, func: Callable, args: tuple, kwargs: dict) -> Any:
-        """执行异步函数
-
-        Args:
-            func: 被装饰的函数
-            args: 位置参数
-            kwargs: 关键字参数
-
-        Returns:
-            Any: 函数执行结果
-        """
+        """执行异步函数"""
         start_time = perf_counter()
 
         try:
@@ -374,5 +245,5 @@ def _log_timing(
 # 导出模块公共接口
 __all__ = [
     'TimerStrategy',
-    'UniversalFunctionWrapper',
+    'UnifiedWrapper',
 ]

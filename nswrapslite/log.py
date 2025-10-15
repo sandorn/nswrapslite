@@ -49,7 +49,7 @@ def _create_sync_wrapper(func: Callable[..., Any], log_args: bool, log_result: b
                 mylog.success(f'{log_context} | Result: {type(result).__name__} = {result}')
             return result
         except Exception as err:
-            handle_exception(exc=err, re_raise=re_raise, log_traceback=log_traceback, custom_message=f'{custom_message} {log_context}')
+            return handle_exception(exc=err, re_raise=re_raise, log_traceback=log_traceback, custom_message=f'{custom_message} {log_context}')
 
     return wrapper
 
@@ -71,7 +71,7 @@ def _create_async_wrapper(func: Callable[..., Any], log_args: bool, log_result: 
                 mylog.success(f'{log_context} | Result: {type(result).__name__} = {result}')
             return result
         except Exception as err:
-            handle_exception(exc=err, re_raise=re_raise, log_traceback=log_traceback, custom_message=f'{custom_message} {log_context}')
+            return handle_exception(exc=err, re_raise=re_raise, log_traceback=log_traceback, custom_message=f'{custom_message} {log_context}')
 
     return wrapper
 

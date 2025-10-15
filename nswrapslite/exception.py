@@ -42,7 +42,7 @@ def handle_exception(
     handler: Callable[..., Any] | None = None,
     log_traceback: bool = True,
     custom_message: str = '',
-):
+) -> BaseException | None:
     """
     统一的异常处理函数，提供完整的异常捕获、记录和处理机制
 
@@ -55,6 +55,7 @@ def handle_exception(
 
     Returns:
         Any: 如果re_raise=True，重新抛出异常
+        None: 如果re_raise=False，返回错误exc
 
     Example:
         >>> # 基本使用
@@ -63,7 +64,7 @@ def handle_exception(
         ... except Exception as e:
         ...     # 记录异常但不中断程序
         ...     handle_exception(e, re_raise=False)
-        >>> print(result)  # 输出: 0
+        >>> print(result)  # 输出: ZeroDivisionError
     """
 
     # 构建错误信息
@@ -89,6 +90,8 @@ def handle_exception(
     # 根据需要重新抛出异常
     if re_raise and exc is not None:
         raise exc
+
+    return exc
 
 
 def exception_wraps(
@@ -147,7 +150,7 @@ def exception_wraps(
                 try:
                     return await func(*args, **kwargs)
                 except allowed_exceptions as exc:
-                    handle_exception(exc, re_raise, handler, log_traceback, custom_message)
+                    return handle_exception(exc, re_raise, handler, log_traceback, custom_message)
 
             return async_wrapper
 
@@ -158,7 +161,7 @@ def exception_wraps(
             try:
                 return func(*args, **kwargs)
             except allowed_exceptions as exc:
-                handle_exception(exc, re_raise, handler, log_traceback, custom_message)
+                return handle_exception(exc, re_raise, handler, log_traceback, custom_message)
 
         return sync_wrapper
 
