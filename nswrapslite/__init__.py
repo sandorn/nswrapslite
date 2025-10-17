@@ -35,7 +35,7 @@ from .exception import exception_wraps
 from .executor import async_executor, await_future_with_timeout, run_on_executor, syncify, to_future
 from .factory import decorator_factory, exc_wrapper_factory, log_wrapper_factory, timer_wrapper_factory
 from .log import logging_wraps
-from .retry import retry_future, retry_request, retry_wraps, spider_retry
+from .retry import retry_future, retry_wraps, spider_retry
 from .singleton import SingletonMeta, SingletonMixin, SingletonWraps, singleton
 from .strategy import TimerStrategy, UnifiedWrapper
 from .tenacityretry import TRETRY, tenacity_retry_wraps
@@ -74,7 +74,6 @@ __all__ = (
     'logging_wraps',
     'readonly',
     'retry_future',
-    'retry_request',
     'retry_wraps',
     'run_on_executor',
     'singleton',

@@ -10,8 +10,8 @@ Github       : https://github.com/sandorn/nswrapslite
 本模块提供以下核心功能：
 - RetryStrategy：重试策略类，定义重试逻辑和参数
 - retry_wraps：函数重试装饰器，支持同步和异步函数
-- retry_wraps_with_strategy：使用自定义策略的函数重试装饰器
-- exponential_backoff：指数退避等待时间计算函数
+- retry_future：针对Future对象的函数重试装饰器
+- spider_retry：针对爬虫的函数重试装饰器
 
 主要特性：
 - 同时支持同步和异步函数
@@ -26,6 +26,8 @@ Github       : https://github.com/sandorn/nswrapslite
 from __future__ import annotations
 
 import asyncio
+import http
+import socket
 import time
 import traceback
 from collections.abc import Awaitable, Callable, Sequence
@@ -33,7 +35,6 @@ from concurrent.futures import Future
 from functools import wraps
 from typing import Any, Protocol
 
-import requests
 from xtlog import mylog
 
 from .utils import get_function_location, is_async_function
@@ -102,7 +103,7 @@ def retry_wraps(
     re_raise: bool = False,
     handler: Callable[[Exception], Any] | None = None,
     log_traceback: bool = False,
-    custom_message: str = '',
+    custom_message: str = 'retry_wraps',
 ) -> Callable[..., Any]:
     """重试装饰器入口，根据函数类型选择同步/异步包装器
 
@@ -153,14 +154,17 @@ def _create_sync_wrapper(func: Callable[..., Any], strategy: RetryStrategy) -> C
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         last_exception: Exception | None = None
+        total_attempts = 0
 
         for attempt in range(1, strategy.max_retries + 1):
+            total_attempts = attempt
             try:
                 result = func(*args, **kwargs)
                 # 修正：检查是否需要根据结果重试
                 if strategy.should_retry_on_result(result) and attempt < strategy.max_retries:  # 还有重试次数
                     time.sleep(strategy.calculate_delay(attempt))
                     continue
+                mylog.success(f'{strategy.custom_message}重试 {attempt}/{strategy.max_retries} 成功')
                 return result
 
             except Exception as exc:
@@ -172,7 +176,7 @@ def _create_sync_wrapper(func: Callable[..., Any], strategy: RetryStrategy) -> C
 
         # 所有重试失败后，记录异常但返回异常对象而不是None
         if last_exception:
-            mylog.error(f'{strategy.custom_message} 重试完毕,最后异常: {type(last_exception).__name__}({last_exception!s})')
+            mylog.error(f'{strategy.custom_message}重试 {total_attempts}/{strategy.max_retries} 返回: {type(last_exception).__name__}({last_exception!s})')
 
             if strategy.log_traceback:
                 tb_str = ''.join(traceback.format_exception(type(last_exception), last_exception, last_exception.__traceback__))
@@ -195,14 +199,17 @@ def _create_async_wrapper(func: Callable[..., Awaitable[Any]], strategy: RetrySt
     @wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         last_exception: Exception | None = None
+        total_attempts = 0
 
         for attempt in range(1, strategy.max_retries + 1):
+            total_attempts = attempt
             try:
                 result = await func(*args, **kwargs)
                 # 修正：检查是否需要根据结果重试
-                if strategy.should_retry_on_result(result) and attempt < strategy.max_retries:  # 还有重试次数
+                if strategy.should_retry_on_result(result) and attempt < strategy.max_retries:
                     await asyncio.sleep(strategy.calculate_delay(attempt))
                     continue
+                mylog.success(f'{strategy.custom_message}重试 {attempt}/{strategy.max_retries} 成功')
                 return result
 
             except Exception as exc:
@@ -214,7 +221,7 @@ def _create_async_wrapper(func: Callable[..., Awaitable[Any]], strategy: RetrySt
 
         # 所有重试失败后，记录异常但返回异常对象而不是None
         if last_exception:
-            mylog.error(f'{strategy.custom_message} 重试完毕,最后异常: {type(last_exception).__name__}({last_exception!s})')
+            mylog.error(f'{strategy.custom_message}重试 {total_attempts}/{strategy.max_retries} 返回: {type(last_exception).__name__}({last_exception!s})')
 
             if strategy.log_traceback:
                 tb_str = ''.join(traceback.format_exception(type(last_exception), last_exception, last_exception.__traceback__))
@@ -242,7 +249,7 @@ async def retry_future(
     re_raise: bool = False,
     handler: Callable[[Exception], Any] | None = None,
     log_traceback: bool = True,
-    custom_message: str = '',
+    custom_message: str = 'Future操作',
 ) -> Any:
     """
     Future重试函数 - 复用_create_async_wrapper实现的新版本
@@ -287,7 +294,7 @@ async def retry_future(
         re_raise=re_raise,
         handler=handler,
         log_traceback=log_traceback,
-        custom_message=custom_message or 'Future操作',
+        custom_message=custom_message,
     )
 
     # 复用_create_async_wrapper创建重试包装器并执行
@@ -295,89 +302,92 @@ async def retry_future(
     return await wrapped_func()
 
 
-def retry_request(
-    request_func: RequestLike,
-    *args: Any,
-    max_retries: int = 3,
-    delay: float = 1.0,
-    backoff: float = 2.0,
-    jitter: float = 0.1,
-    exceptions: tuple[type[Exception], ...] = (Exception,),
-    retry_on_status: Sequence[int] | None = [429, 500, 502, 503, 504],
-    re_raise: bool = False,
-    handler: Callable[[Exception], Any] | None = None,
-    log_traceback: bool = False,
-    custom_message: str = '',
-    **kwargs: Any,
-) -> Any:
-    """
-    HTTP请求重试函数 - 为HTTP请求添加重试功能
+def get_retry_exceptions(include_requests: bool = True, include_aiohttp: bool = True) -> tuple[type[Exception], ...]:
+    """根据使用的HTTP库返回相应的重试异常列表"""
 
-    核心功能：
-    - 自动重试失败的HTTP请求
-    - 支持指数退避策略和随机抖动
-    - 可自定义重试条件和异常类型
-    - 支持基于HTTP状态码的重试
-    - 详细的日志记录
-
-    Args:
-        request_func: HTTP请求函数(如requests.get)
-        *args: 传递给请求函数的位置参数
-        max_retries: 最大重试次数，默认3次
-        delay: 初始延迟时间(秒)，默认1秒
-        backoff: 退避系数，每次重试延迟时间会乘以此系数，默认2
-        jitter: 抖动系数，为延迟时间添加随机抖动，默认0.1
-        exceptions: 需要重试的异常类型，默认为所有Exception
-        retry_on_status: 需要重试的HTTP状态码列表
-        re_raise: 是否重新抛出异常，默认False
-        handler: 异常处理函数，默认None
-        log_traceback: 是否记录异常堆栈跟踪，默认True
-        custom_message: 自定义异常消息，默认空字符串
-        **kwargs: 传递给请求函数的关键字参数
-
-    Returns:
-        HTTP请求的响应对象
-
-    示例:
-        response = retry_request(
-            requests.get,
-            "https://api.example.com/data",
-            max_retries=5,
-            retry_on_status=[429, 500, 502, 503, 504],
-            timeout=10
-        )
-    """
-
-    # 定义基于状态码的重试条件
-    def should_retry_on_response(response: Any) -> bool:
-        if retry_on_status is None:
-            return False
-
-        # 尝试获取响应的状态码
-        status_code = getattr(response, 'status_code', None)
-        if status_code is None:
-            return False
-
-        return status_code in retry_on_status
-
-    # 使用重试装饰器包装请求函数
-    @retry_wraps(
-        max_retries=max_retries,
-        delay=delay,
-        backoff=backoff,
-        jitter=jitter,
-        exceptions=exceptions,
-        retry_on_result=should_retry_on_response,
-        re_raise=re_raise,
-        handler=handler,
-        log_traceback=log_traceback,
-        custom_message=custom_message,
+    base_exceptions = (
+        ConnectionError,
+        TimeoutError,
+        OSError,
+        IOError,
+        BrokenPipeError,
+        ConnectionResetError,
+        socket.gaierror,  # DNS解析失败
+        socket.timeout,  # socket超时
+        http.client.HTTPException,  # HTTP协议异常
     )
-    def wrapped_request() -> Any:
-        return request_func(*args, **kwargs)
 
-    # 执行包装后的请求函数
-    return wrapped_request()
+    requests_exceptions = ()
+    aiohttp_exceptions = ()
+
+    # 动态添加requests异常
+    if include_requests:
+        try:
+            import requests
+
+            requests_exceptions = (
+                requests.exceptions.RequestException,
+                requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ProxyError,
+                requests.exceptions.SSLError,
+                requests.exceptions.ConnectTimeout,
+                requests.exceptions.ReadTimeout,
+                requests.exceptions.ChunkedEncodingError,
+                requests.exceptions.ContentDecodingError,
+            )
+        except ImportError:
+            pass
+
+    # 动态添加aiohttp异常
+    if include_aiohttp:
+        try:
+            import asyncio
+
+            import aiohttp
+
+            aiohttp_exceptions = (
+                aiohttp.ClientError,
+                aiohttp.ServerTimeoutError,
+                aiohttp.ClientConnectionError,
+                aiohttp.ClientProxyConnectionError,
+                aiohttp.ClientSSLError,
+                aiohttp.ClientResponseError,
+                aiohttp.ClientPayloadError,
+                asyncio.TimeoutError,
+            )
+        except ImportError:
+            pass
+
+    # 动态添加urllib3异常
+    try:
+        import urllib3
+
+        urllib3_exceptions = (
+            urllib3.exceptions.HTTPError,
+            urllib3.exceptions.ConnectionError,
+            urllib3.exceptions.TimeoutError,
+            urllib3.exceptions.ProtocolError,
+        )
+    except ImportError:
+        urllib3_exceptions = ()
+
+    return base_exceptions + requests_exceptions + aiohttp_exceptions + urllib3_exceptions
+
+
+def get_retry_status_codes(strategy: str = 'balanced') -> list[int]:
+    """根据策略返回重试状态码列表"""
+
+    strategies = {
+        # 保守策略 - 只重试明确应该重试的
+        'conservative': [429, 500, 502, 503, 504],
+        # 平衡策略 - 推荐使用
+        'balanced': [408, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524],
+        # 积极策略 - 对任何临时错误都重试
+        'aggressive': [408, 409, 423, 424, 425, 429, 500, 502, 503, 504, 507, 508, 509, 520, 521, 522, 523, 524, 525, 526, 527, 530],
+    }
+
+    return strategies.get(strategy, strategies['balanced'])
 
 
 def spider_retry(
@@ -387,18 +397,10 @@ def spider_retry(
     delay: float = 1.0,
     backoff: float = 2.0,
     jitter: float = 0.2,  # 爬虫场景下稍大的抖动，减少被识别为爬虫的风险
-    exceptions: tuple[type[Exception], ...] = (
-        ConnectionError,
-        TimeoutError,
-        requests.exceptions.RequestException,
-        requests.exceptions.Timeout,
-        requests.exceptions.ConnectionError,
-        requests.exceptions.ProxyError,
-        requests.exceptions.SSLError,
-    ),
-    retry_on_status: Sequence[int] | None = [429, 500, 502, 503, 504],
+    exceptions: tuple[type[Exception], ...] | None = None,
+    retry_on_status: Sequence[int] | None = None,
     log_traceback: bool = False,
-    custom_message: str = '爬虫请求',
+    custom_message: str = 'spider_retry',
 ) -> Callable[..., Any]:
     """
     爬虫专用的重试装饰器 - 在所有重试失败后返回最后捕获的异常
@@ -418,13 +420,20 @@ def spider_retry(
         exceptions: 触发重试的异常类型元组，预设了爬虫常见的网络异常
         retry_on_status: 需要重试的HTTP状态码列表
         log_traceback: 是否记录完整堆栈信息，默认True
-        custom_message: 自定义错误提示信息，默认"爬虫请求"
+        custom_message: 自定义错误提示信息，默认"spider_retry"
 
     Returns:
         Callable[..., Any]: 包装后的函数，如果成功返回原函数结果，否则返回异常对象
     """
+    # 构建重试异常
+    if exceptions is None:
+        exceptions = get_retry_exceptions()
 
-    # 定义基于状态码的重试条件
+    # 构建重试状态码
+    if retry_on_status is None:
+        retry_on_status = get_retry_status_codes()
+
+    # 状态码的重试条件
     def should_retry_on_response(response: Any) -> bool:
         if retry_on_status is None:
             return False
@@ -453,4 +462,4 @@ def spider_retry(
 
 
 # 更新导出模块公共接口
-__all__ = ['retry_future', 'retry_request', 'retry_wraps', 'spider_retry']
+__all__ = ['retry_future', 'retry_wraps', 'spider_retry']

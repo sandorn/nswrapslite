@@ -30,7 +30,7 @@ from typing import Any
 from xtlog import mylog
 
 # 使用相对导入
-from .utils import is_async_function
+from .utils import get_function_location, is_async_function
 
 # 类型别名
 ExceptionTypes = tuple[type[Exception], ...]
@@ -101,7 +101,7 @@ def exception_wraps(
     handler: Callable[[Exception], Any] | None = None,
     allowed_exceptions: ExceptionTypes = (Exception,),
     log_traceback: bool = True,
-    custom_message: str = '',
+    custom_message: str = 'exception_wraps',
 ) -> Callable:
     """
     通用异常处理装饰器 - 支持同步和异步函数
@@ -141,6 +141,7 @@ def exception_wraps(
 
     def decorator(func: Callable) -> Callable:
         """装饰器函数"""
+        msg = f'{custom_message} {get_function_location(func)}'
 
         if is_async_function(func):
             # 异步函数异常捕获装饰器
@@ -150,7 +151,7 @@ def exception_wraps(
                 try:
                     return await func(*args, **kwargs)
                 except allowed_exceptions as exc:
-                    return handle_exception(exc, re_raise, handler, log_traceback, custom_message)
+                    return handle_exception(exc, re_raise, handler, log_traceback, msg)
 
             return async_wrapper
 
@@ -161,7 +162,7 @@ def exception_wraps(
             try:
                 return func(*args, **kwargs)
             except allowed_exceptions as exc:
-                return handle_exception(exc, re_raise, handler, log_traceback, custom_message)
+                return handle_exception(exc, re_raise, handler, log_traceback, msg)
 
         return sync_wrapper
 
